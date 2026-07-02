@@ -1,0 +1,50 @@
+{% extends "admin_base.html" %}
+{% block title %}Reports{% endblock %}
+{% block content %}
+<h1>Sales reports</h1>
+<p class="hint">All dates are shop time (Asia/Kathmandu).</p>
+
+<div class="reports">
+  <section>
+    <h2>Daily (last 31 days with sales)</h2>
+    <table>
+      <thead><tr><th>Date</th><th class="num">Sales</th><th class="num">Total</th></tr></thead>
+      <tbody>
+        {% for r in daily %}
+        <tr><td>{{ r.date }}</td><td class="num">{{ r.sales_count }}</td><td class="num">{{ r.total | rs }}</td></tr>
+        {% else %}
+        <tr><td colspan="3" class="empty">No sales yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>Weekly (last 12 weeks with sales)</h2>
+    <table>
+      <thead><tr><th>ISO week</th><th class="num">Sales</th><th class="num">Total</th></tr></thead>
+      <tbody>
+        {% for r in weekly %}
+        <tr><td>{{ r.period }}</td><td class="num">{{ r.sales_count }}</td><td class="num">{{ r.total | rs }}</td></tr>
+        {% else %}
+        <tr><td colspan="3" class="empty">No sales yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>Monthly (last 12 months with sales)</h2>
+    <table>
+      <thead><tr><th>Month</th><th class="num">Sales</th><th class="num">Total</th></tr></thead>
+      <tbody>
+        {% for r in monthly %}
+        <tr><td>{{ r.period }}</td><td class="num">{{ r.sales_count }}</td><td class="num">{{ r.total | rs }}</td></tr>
+        {% else %}
+        <tr><td colspan="3" class="empty">No sales yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+</div>
+{% endblock %}

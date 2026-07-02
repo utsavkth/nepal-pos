@@ -142,6 +142,127 @@ def add_product(name, price, barcode=None, category="other", is_weighed=0, unit=
     return dict(row)
 
 
+def get_products(query=None, category=None):
+    """All products (active and inactive) for the admin list, with optional filters."""
+    sql = "SELECT * FROM products WHERE 1=1"
+    params = []
+    if query:
+        sql += " AND name LIKE ? COLLATE NOCASE"
+        params.append(f"%{query}%")
+    if category:
+        sql += " AND category = ?"
+        params.append(category)
+    sql += " ORDER BY active DESC, name"
+    conn = get_store_db()
+    rows = conn.execute(sql, params).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_product(product_id):
+    conn = get_store_db()
+    row = conn.execute("SELECT * FROM products WHERE id = ?", (product_id,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def update_product(product_id, barcode, name, category, price, is_weighed, unit):
+    conn = get_store_db()
+    conn.execute(
+        """
+        UPDATE products
+        SET barcode = ?, name = ?, category = ?, price = ?, is_weighed = ?, unit = ?
+        WHERE id = ?
+        """,
+        (barcode, name, category, price, is_weighed, unit, product_id),
+    )
+    conn.commit()
+    conn.close()
+
+
+def set_product_active(product_id, active):
+    conn = get_store_db()
+    conn.execute("UPDATE products SET active = ? WHERE id = ?", (1 if active else 0, product_id))
+    conn.commit()
+    conn.close()
+
+
+def import_product_row(barcode, name, category, price, is_weighed, unit):
+    """Import one product row. A barcode matching an existing product updates it
+    (and reactivates it); otherwise a new product is inserted.
+    Returns 'updated' or 'inserted'."""
+    conn = get_store_db()
+    existing = None
+    if barcode:
+        existing = conn.execute(
+            "SELECT id FROM products WHERE barcode = ?", (barcode,)
+        ).fetchone()
+    if existing:
+        conn.execute(
+            """
+            UPDATE products
+            SET name = ?, category = ?, price = ?, is_weighed = ?, unit = ?, active = 1
+            WHERE id = ?
+            """,
+            (name, category, price, is_weighed, unit, existing["id"]),
+        )
+        result = "updated"
+    else:
+        conn.execute(
+            """
+            INSERT INTO products (barcode, name, category, price, is_weighed, unit, active)
+            VALUES (?, ?, ?, ?, ?, ?, 1)
+            """,
+            (barcode, name, category, price, is_weighed, unit),
+        )
+        result = "inserted"
+    conn.commit()
+    conn.close()
+    return result
+
+
+def get_daily_totals(limit=31):
+    """Daily sales totals, newest first. Dates are already Asia/Kathmandu local."""
+    conn = get_sales_db()
+    rows = conn.execute(
+        """
+        SELECT date, COUNT(*) AS sales_count, SUM(total) AS total
+        FROM sales GROUP BY date ORDER BY date DESC LIMIT ?
+        """,
+        (limit,),
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_all_daily_totals():
+    """Every day with sales, oldest first, for weekly/monthly aggregation."""
+    conn = get_sales_db()
+    rows = conn.execute(
+        """
+        SELECT date, COUNT(*) AS sales_count, SUM(total) AS total
+        FROM sales GROUP BY date ORDER BY date
+        """
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_sales_export_rows():
+    """One row per sale item, joined with its sale, for CSV export."""
+    conn = get_sales_db()
+    rows = conn.execute(
+        """
+        SELECT s.sale_id, s.date, s.time, i.product_name, i.quantity,
+               i.unit_price, i.line_total, s.total AS sale_total
+        FROM sales s JOIN sale_items i ON i.sale_id = s.sale_id
+        ORDER BY s.sale_id, i.item_id
+        """
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
 def save_sale(items):
     """Save a sale with its line items. Timestamps use Asia/Kathmandu shop time.
 

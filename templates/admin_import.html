@@ -1,0 +1,31 @@
+{% extends "admin_base.html" %}
+{% block title %}Import products{% endblock %}
+{% block content %}
+<h1>Bulk product import</h1>
+
+<p class="hint">
+  Upload a CSV file with this exact header row:
+  <code>barcode,name,category,price,is_weighed,unit</code><br>
+  category: grocery, weighed, lpg, stationery or other. unit: kg, piece, packet or bottle.
+  is_weighed: 1 or 0. barcode can be empty.<br>
+  A row whose barcode matches an existing product updates that product (and reactivates it);
+  all other rows are added as new products.
+</p>
+
+{% if result %}
+<p class="flash">
+  Import finished: {{ result.inserted }} added, {{ result.updated }} updated, {{ result.failed }} row(s) skipped.
+</p>
+{% endif %}
+
+{% if errors %}
+<div class="error">
+  {% for e in errors %}<p>{{ e }}</p>{% endfor %}
+</div>
+{% endif %}
+
+<form method="post" enctype="multipart/form-data" class="import-form">
+  <input type="file" name="file" accept=".csv,text/csv">
+  <button type="submit">Import</button>
+</form>
+{% endblock %}

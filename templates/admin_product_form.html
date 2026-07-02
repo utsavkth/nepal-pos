@@ -1,0 +1,41 @@
+{% extends "admin_base.html" %}
+{% block title %}{{ "Add product" if mode == "new" else "Edit product" }}{% endblock %}
+{% block content %}
+<h1>{{ "Add product" if mode == "new" else "Edit product" }}</h1>
+{% if error %}<p class="error">{{ error }}</p>{% endif %}
+
+<form method="post" class="product-form">
+  <label>Name
+    <input name="name" required value="{{ product.name if product else '' }}">
+  </label>
+  <label>Barcode (leave empty if none)
+    <input name="barcode" value="{{ product.barcode if product and product.barcode else '' }}">
+  </label>
+  <label>Category
+    <select name="category">
+      {% for c in categories %}
+        <option value="{{ c }}" {% if product and product.category == c %}selected{% endif %}>{{ c }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>Price (Rs.)
+    <input name="price" type="number" step="0.01" min="0.01" required
+           value="{{ product.price if product else '' }}">
+  </label>
+  <label>Unit
+    <select name="unit">
+      {% for u in units %}
+        <option value="{{ u }}" {% if product and product.unit == u %}selected{% endif %}>{{ u }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label class="checkbox">
+    <input type="checkbox" name="is_weighed" value="1" {% if product and product.is_weighed %}checked{% endif %}>
+    Sold by weight (kg)
+  </label>
+  <div class="form-actions">
+    <button type="submit">{{ "Add product" if mode == "new" else "Save changes" }}</button>
+    <a class="button secondary" href="{{ url_for('admin_products') }}">Cancel</a>
+  </div>
+</form>
+{% endblock %}
