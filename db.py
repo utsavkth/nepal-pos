@@ -87,16 +87,16 @@ def init_db():
 
 
 def search_products(query, limit=20):
-    """Search active products by name, case-insensitive substring match."""
+    """Search active products by name (case-insensitive substring) or barcode."""
     conn = get_store_db()
     rows = conn.execute(
         """
         SELECT * FROM products
-        WHERE active = 1 AND name LIKE ? COLLATE NOCASE
+        WHERE active = 1 AND (name LIKE ? COLLATE NOCASE OR barcode LIKE ?)
         ORDER BY name
         LIMIT ?
         """,
-        (f"%{query}%", limit),
+        (f"%{query}%", f"%{query}%", limit),
     ).fetchall()
     conn.close()
     return [dict(r) for r in rows]
@@ -147,7 +147,8 @@ def get_products(query=None, category=None):
     sql = "SELECT * FROM products WHERE 1=1"
     params = []
     if query:
-        sql += " AND name LIKE ? COLLATE NOCASE"
+        sql += " AND (name LIKE ? COLLATE NOCASE OR barcode LIKE ?)"
+        params.append(f"%{query}%")
         params.append(f"%{query}%")
     if category:
         sql += " AND category = ?"
