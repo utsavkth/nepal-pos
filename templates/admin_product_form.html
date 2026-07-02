@@ -33,6 +33,14 @@
     <input type="checkbox" name="is_weighed" value="1" {% if product and product.is_weighed %}checked{% endif %}>
     Sold by weight (kg)
   </label>
+  <label>Quick-tap group (weighed items only; auto-detected from the name if left on auto)
+    <select name="weighed_group">
+      <option value="">auto</option>
+      {% for g in weighed_groups %}
+        <option value="{{ g }}" {% if product and product.weighed_group == g %}selected{% endif %}>{{ g }}</option>
+      {% endfor %}
+    </select>
+  </label>
   <div class="form-actions">
     <button type="submit">{{ "Add product" if mode == "new" else "Save changes" }}</button>
     <a class="button secondary" href="{{ url_for('admin_products') }}">Cancel</a>

@@ -30,14 +30,6 @@ ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD")
 CATEGORIES = ["grocery", "weighed", "lpg", "stationery", "other"]
 UNITS = ["kg", "piece", "packet", "bottle"]
 
-# Cashier quick-tap buttons: one button per weighed-goods group, populated
-# dynamically by matching active weighed products on name keywords.
-QUICK_TAP_GROUPS = [
-    ("Rice", ["rice"]),
-    ("Dal", ["dal", "lentil"]),
-    ("Sugar", ["sugar"]),
-    ("Flour", ["flour", "atta"]),
-]
 
 db.init_db()
 
@@ -72,12 +64,11 @@ def api_product_by_barcode(barcode):
 def api_quick_taps():
     products = db.get_quick_tap_products()
     groups = []
-    for label, keywords in QUICK_TAP_GROUPS:
+    for label in db.WEIGHED_GROUPS:
         matches = [
             p
             for p in products
-            if p["category"] == "weighed"
-            and any(k in p["name"].lower() for k in keywords)
+            if p["category"] == "weighed" and (p["weighed_group"] or "Other") == label
         ]
         groups.append({"label": label, "products": matches})
     lpg = [p for p in products if p["category"] == "lpg"]
@@ -95,7 +86,21 @@ def api_quick_add():
     if not name or price <= 0:
         return jsonify({"error": "name_and_positive_price_required"}), 400
     barcode = (data.get("barcode") or "").strip() or None
-    product = db.add_product(name=name, price=price, barcode=barcode)
+    if data.get("is_weighed"):
+        weighed_group = data.get("weighed_group")
+        if weighed_group not in db.WEIGHED_GROUPS:
+            return jsonify({"error": "invalid_weighed_group"}), 400
+        product = db.add_product(
+            name=name,
+            price=price,  # per kg
+            barcode=barcode,
+            category="weighed",
+            is_weighed=1,
+            unit="kg",
+            weighed_group=weighed_group,
+        )
+    else:
+        product = db.add_product(name=name, price=price, barcode=barcode)
     return jsonify(product), 201
 
 
@@ -213,6 +218,9 @@ def _parse_product_form():
         return None, "Choose a valid unit."
     if price <= 0:
         return None, "Price must be greater than zero."
+    weighed_group = request.form.get("weighed_group", "").strip() or None
+    if weighed_group is not None and weighed_group not in db.WEIGHED_GROUPS:
+        return None, "Choose a valid quick-tap group."
     return (
         {
             "name": name,
@@ -221,6 +229,7 @@ def _parse_product_form():
             "price": price,
             "is_weighed": is_weighed,
             "unit": unit,
+            "weighed_group": weighed_group,
         },
         None,
     )
@@ -242,6 +251,7 @@ def admin_product_new():
         error=error,
         categories=CATEGORIES,
         units=UNITS,
+        weighed_groups=db.WEIGHED_GROUPS,
         mode="new",
     )
 
@@ -266,6 +276,7 @@ def admin_product_edit(product_id):
         error=error,
         categories=CATEGORIES,
         units=UNITS,
+        weighed_groups=db.WEIGHED_GROUPS,
         mode="edit",
     )
 

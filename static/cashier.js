@@ -167,6 +167,8 @@ async function loadQuickTaps() {
     const container = document.getElementById("quick-taps");
     container.innerHTML = "";
     data.groups.forEach((group) => {
+      // "Other" only earns a button once something is actually in it
+      if (group.label === "Other" && group.products.length === 0) return;
       const btn = document.createElement("button");
       btn.type = "button";
       btn.className = "tap-weighed";
@@ -357,6 +359,17 @@ document.getElementById("price-ok").addEventListener("click", () => {
 const quickAddModal = document.getElementById("quick-add-modal");
 let quickAddBarcode = null;
 
+const quickAddWeighed = document.getElementById("quick-add-weighed");
+const quickAddGroupField = document.getElementById("quick-add-group-field");
+const quickAddPriceLabel = document.getElementById("quick-add-price-label");
+
+quickAddWeighed.addEventListener("change", () => {
+  quickAddGroupField.hidden = !quickAddWeighed.checked;
+  quickAddPriceLabel.textContent = quickAddWeighed.checked
+    ? "Price per kg (Rs.)"
+    : "Price (Rs.)";
+});
+
 function openQuickAdd(barcode = null) {
   quickAddBarcode = barcode;
   const note = document.getElementById("quick-add-barcode-note");
@@ -368,6 +381,10 @@ function openQuickAdd(barcode = null) {
   }
   document.getElementById("quick-add-name").value = "";
   document.getElementById("quick-add-price").value = "";
+  quickAddWeighed.checked = false;
+  quickAddGroupField.hidden = true;
+  quickAddPriceLabel.textContent = "Price (Rs.)";
+  document.getElementById("quick-add-group").value = "Rice";
   quickAddModal.hidden = false;
   document.getElementById("quick-add-name").focus();
 }
@@ -388,14 +405,27 @@ document.getElementById("quick-add-save").addEventListener("click", async () => 
     const res = await fetch("/api/products/quick-add", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, price, barcode: quickAddBarcode }),
+      body: JSON.stringify({
+        name,
+        price,
+        barcode: quickAddBarcode,
+        is_weighed: quickAddWeighed.checked,
+        weighed_group: quickAddWeighed.checked
+          ? document.getElementById("quick-add-group").value
+          : null,
+      }),
     });
     if (!res.ok) throw new Error();
     const product = await res.json();
-    addToBill(product, 1);
     quickAddModal.hidden = true;
-    showToast(product.name + " saved and added");
     loadQuickTaps(); // a new weighed variety should appear on its category button
+    if (product.is_weighed) {
+      showToast(product.name + " saved — enter the weight");
+      openWeightPad(product);
+    } else {
+      addToBill(product, 1);
+      showToast(product.name + " saved and added");
+    }
   } catch {
     showToast("Could not save item");
   }

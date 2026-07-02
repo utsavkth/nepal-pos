@@ -11,6 +11,34 @@ SALES_DB_PATH = os.path.join(DATA_DIR, "sales.db")
 
 SHOP_TZ = ZoneInfo("Asia/Kathmandu")
 
+# Quick-tap grouping for weighed items. Stored explicitly on each product in
+# weighed_group; the keywords are only a fallback to classify rows that never
+# had a group set (pre-migration rows, CSV imports without the field).
+WEIGHED_GROUPS = ["Rice", "Dal", "Sugar", "Flour", "Other"]
+_GROUP_KEYWORDS = [
+    ("Rice", ["rice"]),
+    ("Dal", ["dal", "lentil"]),
+    ("Sugar", ["sugar"]),
+    ("Flour", ["flour", "atta"]),
+]
+
+
+def infer_weighed_group(name):
+    lower = name.lower()
+    for group, keywords in _GROUP_KEYWORDS:
+        if any(k in lower for k in keywords):
+            return group
+    return "Other"
+
+
+def _normalise_weighed_group(is_weighed, name, weighed_group):
+    """Weighed products always get a group (explicit, else inferred); others never do."""
+    if not is_weighed:
+        return None
+    if weighed_group in WEIGHED_GROUPS:
+        return weighed_group
+    return infer_weighed_group(name)
+
 
 def get_store_db():
     """Return a connection to store.db (products) with row access by column name."""
@@ -41,10 +69,23 @@ def init_store_db():
             price REAL NOT NULL,
             is_weighed BOOLEAN NOT NULL DEFAULT 0,
             unit TEXT NOT NULL CHECK (unit IN ('kg', 'piece', 'packet', 'bottle')),
-            active BOOLEAN NOT NULL DEFAULT 1
+            active BOOLEAN NOT NULL DEFAULT 1,
+            weighed_group TEXT
         )
         """
     )
+    # Migration for databases created before weighed_group existed.
+    columns = [r[1] for r in conn.execute("PRAGMA table_info(products)").fetchall()]
+    if "weighed_group" not in columns:
+        conn.execute("ALTER TABLE products ADD COLUMN weighed_group TEXT")
+    # Backfill: classify weighed products that have no explicit group yet.
+    for row in conn.execute(
+        "SELECT id, name FROM products WHERE is_weighed = 1 AND weighed_group IS NULL"
+    ).fetchall():
+        conn.execute(
+            "UPDATE products SET weighed_group = ? WHERE id = ?",
+            (infer_weighed_group(row["name"]), row["id"]),
+        )
     conn.commit()
     conn.close()
 
@@ -126,15 +167,16 @@ def get_quick_tap_products():
     return [dict(r) for r in rows]
 
 
-def add_product(name, price, barcode=None, category="other", is_weighed=0, unit="piece"):
+def add_product(name, price, barcode=None, category="other", is_weighed=0, unit="piece", weighed_group=None):
     """Insert a product and return it as a dict."""
+    weighed_group = _normalise_weighed_group(is_weighed, name, weighed_group)
     conn = get_store_db()
     cur = conn.execute(
         """
-        INSERT INTO products (barcode, name, category, price, is_weighed, unit, active)
-        VALUES (?, ?, ?, ?, ?, ?, 1)
+        INSERT INTO products (barcode, name, category, price, is_weighed, unit, active, weighed_group)
+        VALUES (?, ?, ?, ?, ?, ?, 1, ?)
         """,
-        (barcode, name, category, price, is_weighed, unit),
+        (barcode, name, category, price, is_weighed, unit, weighed_group),
     )
     conn.commit()
     row = conn.execute("SELECT * FROM products WHERE id = ?", (cur.lastrowid,)).fetchone()
@@ -167,15 +209,16 @@ def get_product(product_id):
     return dict(row) if row else None
 
 
-def update_product(product_id, barcode, name, category, price, is_weighed, unit):
+def update_product(product_id, barcode, name, category, price, is_weighed, unit, weighed_group=None):
+    weighed_group = _normalise_weighed_group(is_weighed, name, weighed_group)
     conn = get_store_db()
     conn.execute(
         """
         UPDATE products
-        SET barcode = ?, name = ?, category = ?, price = ?, is_weighed = ?, unit = ?
+        SET barcode = ?, name = ?, category = ?, price = ?, is_weighed = ?, unit = ?, weighed_group = ?
         WHERE id = ?
         """,
-        (barcode, name, category, price, is_weighed, unit, product_id),
+        (barcode, name, category, price, is_weighed, unit, weighed_group, product_id),
     )
     conn.commit()
     conn.close()
@@ -188,10 +231,11 @@ def set_product_active(product_id, active):
     conn.close()
 
 
-def import_product_row(barcode, name, category, price, is_weighed, unit):
+def import_product_row(barcode, name, category, price, is_weighed, unit, weighed_group=None):
     """Import one product row. A barcode matching an existing product updates it
     (and reactivates it); otherwise a new product is inserted.
     Returns 'updated' or 'inserted'."""
+    weighed_group = _normalise_weighed_group(is_weighed, name, weighed_group)
     conn = get_store_db()
     existing = None
     if barcode:
@@ -202,19 +246,19 @@ def import_product_row(barcode, name, category, price, is_weighed, unit):
         conn.execute(
             """
             UPDATE products
-            SET name = ?, category = ?, price = ?, is_weighed = ?, unit = ?, active = 1
+            SET name = ?, category = ?, price = ?, is_weighed = ?, unit = ?, active = 1, weighed_group = ?
             WHERE id = ?
             """,
-            (name, category, price, is_weighed, unit, existing["id"]),
+            (name, category, price, is_weighed, unit, weighed_group, existing["id"]),
         )
         result = "updated"
     else:
         conn.execute(
             """
-            INSERT INTO products (barcode, name, category, price, is_weighed, unit, active)
-            VALUES (?, ?, ?, ?, ?, ?, 1)
+            INSERT INTO products (barcode, name, category, price, is_weighed, unit, active, weighed_group)
+            VALUES (?, ?, ?, ?, ?, ?, 1, ?)
             """,
-            (barcode, name, category, price, is_weighed, unit),
+            (barcode, name, category, price, is_weighed, unit, weighed_group),
         )
         result = "inserted"
     conn.commit()

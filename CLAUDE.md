@@ -19,7 +19,7 @@ Owner: Utsav (Sydney). Users: non-technical family members in the shop.
 10. No receipt printer — display the total on screen only.
 11. No payment integration — customers pay cash or QR; staff confirm manually. NEW SALE saves the transaction and clears the bill.
 12. Price override at sale time: each line item in the running bill can have its price edited for that sale only (e.g. discounts, damaged goods) without changing the product's stored price. No approval/permission gate in v1 — any staff member can do this.
-13. Quick Add auto-opens automatically the moment a barcode scan returns "not found" — staff should not have to notice the failure and manually open the form.
+13. Quick Add auto-opens automatically the moment a barcode scan returns "not found" — staff should not have to notice the failure and manually open the form. Quick Add must support creating a new WEIGHED variety on the spot (not just fixed-price items) — staff need to be able to mark the new item as weighed, pick its category (Rice/Dal/Sugar/Flour/Other), and set its per-kg price, so a brand new rice or dal variety scanned or typed in at the till immediately becomes a proper weighed product and shows up under the correct category button next time, without needing admin access. Barcode is optional either way (blank if none).
 14. Offline limitation accepted for v1: if the Sydney server or internet is down, the shop reverts to pen and paper. Do not build offline sync in v1.
 
 ## Project structure
@@ -34,7 +34,7 @@ Owner: Utsav (Sydney). Users: non-technical family members in the shop.
 ## Database schema
 
 products (store.db):
-id INTEGER PK, barcode TEXT nullable, name TEXT, category TEXT (grocery/weighed/lpg/stationery/other), price REAL, is_weighed BOOLEAN, unit TEXT (kg/piece/packet/bottle), active BOOLEAN (soft delete)
+id INTEGER PK, barcode TEXT nullable, name TEXT, category TEXT (grocery/weighed/lpg/stationery/other), price REAL, is_weighed BOOLEAN, unit TEXT (kg/piece/packet/bottle), active BOOLEAN (soft delete), weighed_group TEXT nullable (Rice/Dal/Sugar/Flour/Other — quick-tap button grouping for weighed items, NULL for non-weighed)
 
 sales (sales.db):
 sale_id INTEGER PK, date TEXT (ISO), time TEXT (HH:MM:SS), total REAL, item_count INTEGER
@@ -67,6 +67,29 @@ Admin panel (password protected):
 3. Timezone for sales timestamps: Asia/Kathmandu (the shop's local time), not the server's Sydney time
 4. Prices and weights use REAL; quantity for weighed items is kg with up to 3 decimals
 5. Never use bullet points with dashes in generated docs — use numbered lists or plain bullets
+
+## Future phase — product images (not v1, do not build yet)
+
+Once the skeleton (phases 1-8) is working, add product photos so parents
+can visually identify items instead of relying only on name/category —
+especially useful for weighed item varieties (different rice/dal types
+can look similar in a list but very different in a photo).
+
+Planned approach when this phase starts:
+1. Add an `image_path` TEXT column (nullable) to the products table
+2. Admin panel gets an image upload control on the add/edit product form
+3. Images stored on the HDD alongside the databases (e.g.
+   `/data/nepal-pos/images/`), not in the database itself — keep the
+   database small and fast
+4. Cashier screen and category variety-picker (see weighed items,
+   decision 9) show the thumbnail next to each product name where
+   available; products without an image just show text as they do now
+5. Keep uploads small — resize/compress on upload so the Chromebook
+   and iPhones load the cashier screen quickly over Tailscale
+
+Flagging this now so the products table and file layout aren't designed
+in a way that makes adding this later awkward — but this is explicitly
+OUT OF SCOPE until the skeleton above is complete and tested.
 
 ## Build phases (work in this order)
 

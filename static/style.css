@@ -302,6 +302,16 @@ html, body {
   border-radius: var(--radius);
 }
 .field input:focus { outline: 3px solid var(--accent); border-color: transparent; }
+.field select {
+  min-height: var(--touch);
+  font-size: 1.2rem;
+  padding: 0 12px;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  background: #fff;
+}
+.field-checkbox { flex-direction: row; align-items: center; gap: 12px; min-height: 44px; }
+.field-checkbox input { width: 28px; height: 28px; }
 .barcode-note { font-size: 0.9rem; color: #555; background: #fff8e1; padding: 8px 10px; border-radius: 8px; }
 
 /* Scanner */
