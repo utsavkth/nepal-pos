@@ -30,6 +30,15 @@ ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD")
 CATEGORIES = ["grocery", "weighed", "lpg", "stationery", "other"]
 UNITS = ["kg", "piece", "packet", "bottle"]
 
+# Cashier quick-tap buttons: one button per weighed-goods group, populated
+# dynamically by matching active weighed products on name keywords.
+QUICK_TAP_GROUPS = [
+    ("Rice", ["rice"]),
+    ("Dal", ["dal", "lentil"]),
+    ("Sugar", ["sugar"]),
+    ("Flour", ["flour", "atta"]),
+]
+
 db.init_db()
 
 
@@ -61,7 +70,18 @@ def api_product_by_barcode(barcode):
 
 @app.route("/api/products/quick-taps")
 def api_quick_taps():
-    return jsonify(db.get_quick_tap_products())
+    products = db.get_quick_tap_products()
+    groups = []
+    for label, keywords in QUICK_TAP_GROUPS:
+        matches = [
+            p
+            for p in products
+            if p["category"] == "weighed"
+            and any(k in p["name"].lower() for k in keywords)
+        ]
+        groups.append({"label": label, "products": matches})
+    lpg = [p for p in products if p["category"] == "lpg"]
+    return jsonify({"groups": groups, "lpg": lpg})
 
 
 @app.route("/api/products/quick-add", methods=["POST"])

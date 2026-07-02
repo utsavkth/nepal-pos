@@ -15,10 +15,12 @@ Owner: Utsav (Sydney). Users: non-technical family members in the shop.
 6. Client: browser only, no app installation, no Electron, no PWA install requirement. Must run well on the Lenovo Chromebook Duet (primary, touchscreen) AND on iPhone 13 / iPhone 13 Pro Max (parents' secondary devices, Safari). UI must be responsive — large touch targets that work at both Chromebook and iPhone screen sizes.
 7. Barcode scanning: browser camera API (e.g. html5-qrcode or native BarcodeDetector with fallback), designed to work across Chromebook (ChromeOS Chrome), Android Chrome, and iPhone Safari. IMPORTANT: iOS Safari only allows camera access (getUserMedia) over a secure context (HTTPS). This means pos.home must be served over HTTPS via Tailscale, not plain HTTP — use `tailscale cert` to issue a certificate for pos.home and configure Caddy to serve it with TLS. This is a hard requirement for camera scanning to work on the iPhones, not optional polish.
 8. Currency: Rs. (Nepali Rupee, NPR). Format all money as `Rs. 1,250.00`.
-9. Weighed items sold per kg: Rice, Sugar, Flour, Lentils. These get quick-tap buttons plus a weight number pad.
+9. Weighed items sold per kg: multiple varieties are expected (e.g. several kinds of Rice, several kinds of Dal/Lentils), not just one product per category. Quick-tap buttons are by CATEGORY (Rice, Dal, Sugar, Flour), not by a single fixed product. Tapping a category button shows a short list of that category's active products from the database (populated dynamically — grows as new varieties are added via admin or Quick Add), staff pick the specific variety, then the weight number pad opens.
 10. No receipt printer — display the total on screen only.
 11. No payment integration — customers pay cash or QR; staff confirm manually. NEW SALE saves the transaction and clears the bill.
-12. Offline limitation accepted for v1: if the Sydney server or internet is down, the shop reverts to pen and paper. Do not build offline sync in v1.
+12. Price override at sale time: each line item in the running bill can have its price edited for that sale only (e.g. discounts, damaged goods) without changing the product's stored price. No approval/permission gate in v1 — any staff member can do this.
+13. Quick Add auto-opens automatically the moment a barcode scan returns "not found" — staff should not have to notice the failure and manually open the form.
+14. Offline limitation accepted for v1: if the Sydney server or internet is down, the shop reverts to pen and paper. Do not build offline sync in v1.
 
 ## Project structure
 

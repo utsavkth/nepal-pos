@@ -59,6 +59,39 @@
   </div>
 </div>
 
+<!-- Variety picker modal (category quick-tap -> pick specific product) -->
+<div id="variety-modal" class="modal" hidden>
+  <div class="modal-box">
+    <h3 id="variety-title">Rice</h3>
+    <ul id="variety-list" class="variety-list"></ul>
+    <div class="modal-actions">
+      <button id="variety-cancel" class="btn btn-cancel" type="button">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Price override modal (this sale only) -->
+<div id="price-modal" class="modal" hidden>
+  <div class="modal-box">
+    <h3 id="price-title">Change price</h3>
+    <p id="price-current" class="price-current"></p>
+    <div class="weight-display">
+      <span id="price-value">0</span>
+      <span class="weight-line-total">new price in Rs.<span id="price-unit-suffix"></span></span>
+    </div>
+    <div class="numpad">
+      <button data-key="7">7</button><button data-key="8">8</button><button data-key="9">9</button>
+      <button data-key="4">4</button><button data-key="5">5</button><button data-key="6">6</button>
+      <button data-key="1">1</button><button data-key="2">2</button><button data-key="3">3</button>
+      <button data-key=".">.</button><button data-key="0">0</button><button data-key="del">⌫</button>
+    </div>
+    <div class="modal-actions">
+      <button id="price-cancel" class="btn btn-cancel" type="button">Cancel</button>
+      <button id="price-ok" class="btn btn-ok" type="button" disabled>CHANGE</button>
+    </div>
+  </div>
+</div>
+
 <!-- Quick Add modal -->
 <div id="quick-add-modal" class="modal" hidden>
   <div class="modal-box">

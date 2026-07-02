@@ -257,6 +257,41 @@ html, body {
 }
 .numpad button:active { background: #cfd8dc; }
 
+/* Variety picker */
+.variety-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.variety-list button {
+  width: 100%;
+  min-height: var(--touch);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  font-size: 1.15rem;
+  font-weight: 700;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  background: #f1f8e9;
+  cursor: pointer;
+}
+.variety-list button:active { background: #dcedc8; }
+.variety-empty { color: #666; padding: 10px 4px; }
+
+/* Price override */
+.price-current { color: #555; }
+.bill-line-detail.overridden { color: var(--amber); font-weight: 600; }
+.bill-line-edit {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 8px;
+  background: #e3f2fd;
+  color: var(--accent);
+  font-size: 1.15rem;
+  cursor: pointer;
+}
+
 /* Quick add */
 .field { display: flex; flex-direction: column; gap: 6px; font-weight: 600; }
 .field input {

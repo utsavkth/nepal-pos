@@ -1,7 +1,7 @@
-/* Cashier screen logic: search, quick taps, bill, quick add, new sale. */
+/* Cashier screen logic: search, quick taps, bill, quick add, price override, new sale. */
 "use strict";
 
-const bill = []; // { product_name, quantity, unit_price, is_weighed, unit }
+const bill = []; // { product_name, quantity, unit_price, original_price, is_weighed, unit }
 
 function formatRs(n) {
   return "Rs. " + n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -34,14 +34,27 @@ function renderBill() {
     name.textContent = line.product_name;
     const detail = document.createElement("div");
     detail.className = "bill-line-detail";
-    detail.textContent = line.is_weighed
-      ? `${line.quantity} kg × ${formatRs(line.unit_price)}/kg`
+    const per = line.is_weighed ? "/kg" : "";
+    let detailText = line.is_weighed
+      ? `${line.quantity} kg × ${formatRs(line.unit_price)}${per}`
       : `${line.quantity} × ${formatRs(line.unit_price)}`;
+    if (line.unit_price !== line.original_price) {
+      detailText += ` (was ${formatRs(line.original_price)}${per})`;
+      detail.classList.add("overridden");
+    }
+    detail.textContent = detailText;
     info.append(name, detail);
 
     const total = document.createElement("span");
     total.className = "bill-line-total";
     total.textContent = formatRs(lineTotal(line));
+
+    const edit = document.createElement("button");
+    edit.className = "bill-line-edit";
+    edit.type = "button";
+    edit.setAttribute("aria-label", "Change price of " + line.product_name);
+    edit.textContent = "✎";
+    edit.addEventListener("click", () => openPriceOverride(idx));
 
     const remove = document.createElement("button");
     remove.className = "bill-line-remove";
@@ -53,7 +66,7 @@ function renderBill() {
       renderBill();
     });
 
-    li.append(info, total, remove);
+    li.append(info, total, edit, remove);
     list.appendChild(li);
   });
 
@@ -65,7 +78,11 @@ function renderBill() {
 function addToBill(product, quantity) {
   if (!product.is_weighed) {
     const existing = bill.find(
-      (l) => l.product_name === product.name && l.unit_price === product.price && !l.is_weighed
+      (l) =>
+        l.product_name === product.name &&
+        l.unit_price === product.price &&
+        l.unit_price === l.original_price &&
+        !l.is_weighed
     );
     if (existing) {
       existing.quantity += quantity;
@@ -77,6 +94,7 @@ function addToBill(product, quantity) {
     product_name: product.name,
     quantity: quantity,
     unit_price: product.price,
+    original_price: product.price,
     is_weighed: !!product.is_weighed,
     unit: product.unit,
   });
@@ -140,31 +158,43 @@ function renderSearchResults(products) {
   });
 }
 
-/* ---- Quick-tap buttons (weighed items + LPG) ---- */
+/* ---- Quick-tap buttons: weighed-goods category buttons + LPG one-tap ---- */
 
 async function loadQuickTaps() {
   try {
     const res = await fetch("/api/products/quick-taps");
-    const products = await res.json();
+    const data = await res.json();
     const container = document.getElementById("quick-taps");
     container.innerHTML = "";
-    products.forEach((p) => {
+    data.groups.forEach((group) => {
       const btn = document.createElement("button");
       btn.type = "button";
-      btn.className = p.category === "lpg" ? "tap-lpg" : "tap-weighed";
+      btn.className = "tap-weighed";
+      const name = document.createElement("span");
+      name.textContent = group.label;
+      const sub = document.createElement("span");
+      sub.className = "tap-price";
+      sub.textContent =
+        group.products.length === 1
+          ? "1 variety"
+          : group.products.length + " varieties";
+      btn.append(name, sub);
+      btn.addEventListener("click", () => openVarietyList(group));
+      container.appendChild(btn);
+    });
+    data.lpg.forEach((p) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "tap-lpg";
       const name = document.createElement("span");
       name.textContent = p.name;
       const price = document.createElement("span");
       price.className = "tap-price";
-      price.textContent = formatRs(p.price) + (p.is_weighed ? "/kg" : "");
+      price.textContent = formatRs(p.price);
       btn.append(name, price);
       btn.addEventListener("click", () => {
-        if (p.is_weighed) {
-          openWeightPad(p);
-        } else {
-          addToBill(p, 1);
-          showToast(p.name + " added");
-        }
+        addToBill(p, 1);
+        showToast(p.name + " added");
       });
       container.appendChild(btn);
     });
@@ -172,6 +202,44 @@ async function loadQuickTaps() {
     showToast("Could not load quick buttons");
   }
 }
+
+/* ---- Variety picker (category button -> specific product -> weight pad) ---- */
+
+const varietyModal = document.getElementById("variety-modal");
+
+function openVarietyList(group) {
+  document.getElementById("variety-title").textContent = group.label;
+  const list = document.getElementById("variety-list");
+  list.innerHTML = "";
+  if (group.products.length === 0) {
+    const li = document.createElement("li");
+    li.className = "variety-empty";
+    li.textContent = "No " + group.label + " items yet — add one in Admin or Quick Add.";
+    list.appendChild(li);
+  }
+  group.products.forEach((p) => {
+    const li = document.createElement("li");
+    const btn = document.createElement("button");
+    btn.type = "button";
+    const name = document.createElement("span");
+    name.textContent = p.name;
+    const price = document.createElement("span");
+    price.className = "result-price";
+    price.textContent = formatRs(p.price) + "/kg";
+    btn.append(name, price);
+    btn.addEventListener("click", () => {
+      varietyModal.hidden = true;
+      openWeightPad(p);
+    });
+    li.appendChild(btn);
+    list.appendChild(li);
+  });
+  varietyModal.hidden = false;
+}
+
+document.getElementById("variety-cancel").addEventListener("click", () => {
+  varietyModal.hidden = true;
+});
 
 /* ---- Weight pad ---- */
 
@@ -226,6 +294,64 @@ document.getElementById("weight-ok").addEventListener("click", () => {
   }
 });
 
+/* ---- Price override (this sale only — never touches the stored product price) ---- */
+
+const priceModal = document.getElementById("price-modal");
+let priceLineIndex = null;
+let priceStr = "";
+
+function openPriceOverride(index) {
+  priceLineIndex = index;
+  priceStr = "";
+  const line = bill[index];
+  const per = line.is_weighed ? "/kg" : "";
+  document.getElementById("price-title").textContent = line.product_name;
+  document.getElementById("price-current").textContent =
+    "Current price: " + formatRs(line.unit_price) + per +
+    (line.unit_price !== line.original_price
+      ? " (normal " + formatRs(line.original_price) + per + ")"
+      : "");
+  document.getElementById("price-unit-suffix").textContent = line.is_weighed ? " per kg" : "";
+  updatePriceDisplay();
+  priceModal.hidden = false;
+}
+
+function updatePriceDisplay() {
+  document.getElementById("price-value").textContent = priceStr || "0";
+  // allow 0 (free / full discount); disable only while empty
+  document.getElementById("price-ok").disabled = priceStr === "";
+}
+
+document.querySelectorAll("#price-modal .numpad button").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const key = btn.dataset.key;
+    if (key === "del") {
+      priceStr = priceStr.slice(0, -1);
+    } else if (key === ".") {
+      if (!priceStr.includes(".")) priceStr = (priceStr || "0") + ".";
+    } else {
+      const next = priceStr + key;
+      const parts = next.split(".");
+      if (parts[0].length > 5 || (parts[1] || "").length > 2) return;
+      priceStr = next;
+    }
+    updatePriceDisplay();
+  });
+});
+
+document.getElementById("price-cancel").addEventListener("click", () => {
+  priceModal.hidden = true;
+});
+
+document.getElementById("price-ok").addEventListener("click", () => {
+  const newPrice = parseFloat(priceStr);
+  if (priceLineIndex !== null && !Number.isNaN(newPrice)) {
+    bill[priceLineIndex].unit_price = newPrice;
+    renderBill();
+    priceModal.hidden = true;
+  }
+});
+
 /* ---- Quick Add ---- */
 
 const quickAddModal = document.getElementById("quick-add-modal");
@@ -269,6 +395,7 @@ document.getElementById("quick-add-save").addEventListener("click", async () => 
     addToBill(product, 1);
     quickAddModal.hidden = true;
     showToast(product.name + " saved and added");
+    loadQuickTaps(); // a new weighed variety should appear on its category button
   } catch {
     showToast("Could not save item");
   }
@@ -276,25 +403,31 @@ document.getElementById("quick-add-save").addEventListener("click", async () => 
 
 /* ---- Scanner ---- */
 
-document.getElementById("scan-btn").addEventListener("click", () => {
-  startScanner(async (barcode) => {
-    try {
-      const res = await fetch("/api/products/barcode/" + encodeURIComponent(barcode));
-      if (res.status === 404) {
-        openQuickAdd(barcode);
-        return;
-      }
-      const product = await res.json();
-      if (product.is_weighed) {
-        openWeightPad(product);
-      } else {
-        addToBill(product, 1);
-        showToast(product.name + " added");
-      }
-    } catch {
-      showToast("Lookup failed — check connection");
+/* Called with every successfully decoded barcode. A not-found barcode
+   auto-opens Quick Add with the barcode attached — staff never have to
+   notice the miss and open the form themselves. */
+async function handleScannedBarcode(barcode) {
+  try {
+    const res = await fetch("/api/products/barcode/" + encodeURIComponent(barcode));
+    if (res.status === 404) {
+      showToast("Not in the system yet — add it now", 2200);
+      openQuickAdd(barcode);
+      return;
     }
-  });
+    const product = await res.json();
+    if (product.is_weighed) {
+      openWeightPad(product);
+    } else {
+      addToBill(product, 1);
+      showToast(product.name + " added");
+    }
+  } catch {
+    showToast("Lookup failed — check connection");
+  }
+}
+
+document.getElementById("scan-btn").addEventListener("click", () => {
+  startScanner(handleScannedBarcode);
 });
 
 /* ---- New sale ---- */
