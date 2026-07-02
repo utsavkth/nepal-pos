@@ -1,0 +1,331 @@
+/* Cashier screen logic: search, quick taps, bill, quick add, new sale. */
+"use strict";
+
+const bill = []; // { product_name, quantity, unit_price, is_weighed, unit }
+
+function formatRs(n) {
+  return "Rs. " + n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function lineTotal(line) {
+  return Math.round(line.quantity * line.unit_price * 100) / 100;
+}
+
+function showToast(msg, ms = 1800) {
+  const toast = document.getElementById("toast");
+  toast.textContent = msg;
+  toast.hidden = false;
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(() => { toast.hidden = true; }, ms);
+}
+
+/* ---- Bill rendering ---- */
+
+function renderBill() {
+  const list = document.getElementById("bill-lines");
+  list.innerHTML = "";
+  bill.forEach((line, idx) => {
+    const li = document.createElement("li");
+
+    const info = document.createElement("div");
+    info.className = "bill-line-info";
+    const name = document.createElement("div");
+    name.className = "bill-line-name";
+    name.textContent = line.product_name;
+    const detail = document.createElement("div");
+    detail.className = "bill-line-detail";
+    detail.textContent = line.is_weighed
+      ? `${line.quantity} kg × ${formatRs(line.unit_price)}/kg`
+      : `${line.quantity} × ${formatRs(line.unit_price)}`;
+    info.append(name, detail);
+
+    const total = document.createElement("span");
+    total.className = "bill-line-total";
+    total.textContent = formatRs(lineTotal(line));
+
+    const remove = document.createElement("button");
+    remove.className = "bill-line-remove";
+    remove.type = "button";
+    remove.setAttribute("aria-label", "Remove " + line.product_name);
+    remove.textContent = "×";
+    remove.addEventListener("click", () => {
+      bill.splice(idx, 1);
+      renderBill();
+    });
+
+    li.append(info, total, remove);
+    list.appendChild(li);
+  });
+
+  const total = bill.reduce((sum, l) => sum + lineTotal(l), 0);
+  document.getElementById("bill-total").textContent = formatRs(total);
+  document.getElementById("new-sale-btn").disabled = bill.length === 0;
+}
+
+function addToBill(product, quantity) {
+  if (!product.is_weighed) {
+    const existing = bill.find(
+      (l) => l.product_name === product.name && l.unit_price === product.price && !l.is_weighed
+    );
+    if (existing) {
+      existing.quantity += quantity;
+      renderBill();
+      return;
+    }
+  }
+  bill.push({
+    product_name: product.name,
+    quantity: quantity,
+    unit_price: product.price,
+    is_weighed: !!product.is_weighed,
+    unit: product.unit,
+  });
+  renderBill();
+}
+
+/* ---- Search ---- */
+
+const searchInput = document.getElementById("search-input");
+const searchResults = document.getElementById("search-results");
+let searchTimer = null;
+
+searchInput.addEventListener("input", () => {
+  clearTimeout(searchTimer);
+  const q = searchInput.value.trim();
+  if (!q) {
+    searchResults.hidden = true;
+    searchResults.innerHTML = "";
+    return;
+  }
+  searchTimer = setTimeout(async () => {
+    try {
+      const res = await fetch("/api/products/search?q=" + encodeURIComponent(q));
+      const products = await res.json();
+      renderSearchResults(products);
+    } catch {
+      showToast("Search failed — check connection");
+    }
+  }, 150);
+});
+
+function renderSearchResults(products) {
+  searchResults.innerHTML = "";
+  searchResults.hidden = false;
+  if (products.length === 0) {
+    const li = document.createElement("li");
+    li.className = "no-results";
+    li.textContent = "No items found — use Quick Add";
+    searchResults.appendChild(li);
+    return;
+  }
+  products.forEach((p) => {
+    const li = document.createElement("li");
+    const name = document.createElement("span");
+    name.textContent = p.name;
+    const price = document.createElement("span");
+    price.className = "result-price";
+    price.textContent = formatRs(p.price) + (p.is_weighed ? "/kg" : "");
+    li.append(name, price);
+    li.addEventListener("click", () => {
+      if (p.is_weighed) {
+        openWeightPad(p);
+      } else {
+        addToBill(p, 1);
+      }
+      searchInput.value = "";
+      searchResults.hidden = true;
+      searchResults.innerHTML = "";
+    });
+    searchResults.appendChild(li);
+  });
+}
+
+/* ---- Quick-tap buttons (weighed items + LPG) ---- */
+
+async function loadQuickTaps() {
+  try {
+    const res = await fetch("/api/products/quick-taps");
+    const products = await res.json();
+    const container = document.getElementById("quick-taps");
+    container.innerHTML = "";
+    products.forEach((p) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = p.category === "lpg" ? "tap-lpg" : "tap-weighed";
+      const name = document.createElement("span");
+      name.textContent = p.name;
+      const price = document.createElement("span");
+      price.className = "tap-price";
+      price.textContent = formatRs(p.price) + (p.is_weighed ? "/kg" : "");
+      btn.append(name, price);
+      btn.addEventListener("click", () => {
+        if (p.is_weighed) {
+          openWeightPad(p);
+        } else {
+          addToBill(p, 1);
+          showToast(p.name + " added");
+        }
+      });
+      container.appendChild(btn);
+    });
+  } catch {
+    showToast("Could not load quick buttons");
+  }
+}
+
+/* ---- Weight pad ---- */
+
+const weightModal = document.getElementById("weight-modal");
+let weightProduct = null;
+let weightStr = "";
+
+function openWeightPad(product) {
+  weightProduct = product;
+  weightStr = "";
+  document.getElementById("weight-title").textContent =
+    product.name + " — " + formatRs(product.price) + "/kg";
+  updateWeightDisplay();
+  weightModal.hidden = false;
+}
+
+function updateWeightDisplay() {
+  const kg = parseFloat(weightStr) || 0;
+  document.getElementById("weight-value").textContent = weightStr || "0";
+  document.getElementById("weight-line-total").textContent =
+    formatRs(Math.round(kg * weightProduct.price * 100) / 100);
+  document.getElementById("weight-ok").disabled = kg <= 0;
+}
+
+document.querySelectorAll("#weight-modal .numpad button").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const key = btn.dataset.key;
+    if (key === "del") {
+      weightStr = weightStr.slice(0, -1);
+    } else if (key === ".") {
+      if (!weightStr.includes(".")) weightStr = (weightStr || "0") + ".";
+    } else {
+      const next = weightStr + key;
+      // max 3 decimals, keep the number sane
+      const parts = next.split(".");
+      if (parts[0].length > 3 || (parts[1] || "").length > 3) return;
+      weightStr = next;
+    }
+    updateWeightDisplay();
+  });
+});
+
+document.getElementById("weight-cancel").addEventListener("click", () => {
+  weightModal.hidden = true;
+});
+
+document.getElementById("weight-ok").addEventListener("click", () => {
+  const kg = parseFloat(weightStr);
+  if (kg > 0) {
+    addToBill(weightProduct, kg);
+    weightModal.hidden = true;
+  }
+});
+
+/* ---- Quick Add ---- */
+
+const quickAddModal = document.getElementById("quick-add-modal");
+let quickAddBarcode = null;
+
+function openQuickAdd(barcode = null) {
+  quickAddBarcode = barcode;
+  const note = document.getElementById("quick-add-barcode-note");
+  if (barcode) {
+    note.textContent = "New barcode: " + barcode + " — will be saved with this item.";
+    note.hidden = false;
+  } else {
+    note.hidden = true;
+  }
+  document.getElementById("quick-add-name").value = "";
+  document.getElementById("quick-add-price").value = "";
+  quickAddModal.hidden = false;
+  document.getElementById("quick-add-name").focus();
+}
+
+document.getElementById("quick-add-btn").addEventListener("click", () => openQuickAdd());
+document.getElementById("quick-add-cancel").addEventListener("click", () => {
+  quickAddModal.hidden = true;
+});
+
+document.getElementById("quick-add-save").addEventListener("click", async () => {
+  const name = document.getElementById("quick-add-name").value.trim();
+  const price = parseFloat(document.getElementById("quick-add-price").value);
+  if (!name || !(price > 0)) {
+    showToast("Enter a name and a price");
+    return;
+  }
+  try {
+    const res = await fetch("/api/products/quick-add", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, price, barcode: quickAddBarcode }),
+    });
+    if (!res.ok) throw new Error();
+    const product = await res.json();
+    addToBill(product, 1);
+    quickAddModal.hidden = true;
+    showToast(product.name + " saved and added");
+  } catch {
+    showToast("Could not save item");
+  }
+});
+
+/* ---- Scanner ---- */
+
+document.getElementById("scan-btn").addEventListener("click", () => {
+  startScanner(async (barcode) => {
+    try {
+      const res = await fetch("/api/products/barcode/" + encodeURIComponent(barcode));
+      if (res.status === 404) {
+        openQuickAdd(barcode);
+        return;
+      }
+      const product = await res.json();
+      if (product.is_weighed) {
+        openWeightPad(product);
+      } else {
+        addToBill(product, 1);
+        showToast(product.name + " added");
+      }
+    } catch {
+      showToast("Lookup failed — check connection");
+    }
+  });
+});
+
+/* ---- New sale ---- */
+
+document.getElementById("new-sale-btn").addEventListener("click", async () => {
+  if (bill.length === 0) return;
+  const items = bill.map((l) => ({
+    product_name: l.product_name,
+    quantity: l.quantity,
+    unit_price: l.unit_price,
+  }));
+  const btn = document.getElementById("new-sale-btn");
+  btn.disabled = true;
+  try {
+    const res = await fetch("/api/sales", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ items }),
+    });
+    if (!res.ok) throw new Error();
+    const sale = await res.json();
+    bill.length = 0;
+    renderBill();
+    showToast("Sale saved — " + formatRs(sale.total), 2500);
+  } catch {
+    btn.disabled = false;
+    showToast("Could not save sale — try again");
+  }
+});
+
+/* ---- Init ---- */
+
+loadQuickTaps();
+renderBill();

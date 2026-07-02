@@ -12,8 +12,8 @@ Owner: Utsav (Sydney). Users: non-technical family members in the shop.
 3. Remote access: Tailscale (already configured). Never suggest TeamViewer, AnyDesk, or port forwarding.
 4. Reverse proxy: Caddy (already running). Route: `pos.home` → Flask container. Config is appended to the existing Caddyfile.
 5. Database: SQLite files stored at `/data/nepal-pos/` on the Pi's HDD, mounted into the container at `/app/data`.
-6. Client: browser only on the Chromebook. No app installation, no Electron, no PWA install requirement.
-7. Barcode scanning: browser camera API using the Chromebook rear camera (e.g. html5-qrcode or native BarcodeDetector with fallback).
+6. Client: browser only, no app installation, no Electron, no PWA install requirement. Must run well on the Lenovo Chromebook Duet (primary, touchscreen) AND on iPhone 13 / iPhone 13 Pro Max (parents' secondary devices, Safari). UI must be responsive — large touch targets that work at both Chromebook and iPhone screen sizes.
+7. Barcode scanning: browser camera API (e.g. html5-qrcode or native BarcodeDetector with fallback), designed to work across Chromebook (ChromeOS Chrome), Android Chrome, and iPhone Safari. IMPORTANT: iOS Safari only allows camera access (getUserMedia) over a secure context (HTTPS). This means pos.home must be served over HTTPS via Tailscale, not plain HTTP — use `tailscale cert` to issue a certificate for pos.home and configure Caddy to serve it with TLS. This is a hard requirement for camera scanning to work on the iPhones, not optional polish.
 8. Currency: Rs. (Nepali Rupee, NPR). Format all money as `Rs. 1,250.00`.
 9. Weighed items sold per kg: Rice, Sugar, Flour, Lentils. These get quick-tap buttons plus a weight number pad.
 10. No receipt printer — display the total on screen only.
@@ -74,7 +74,7 @@ Admin panel (password protected):
 4. Full local testing of all scenarios
 5. Load the real product database
 6. Dockerise (Dockerfile + compose entry, port 5050:5000, volume mount)
-7. Caddy route for pos.home
-8. End-to-end test via Tailscale
+7. Caddy route for pos.home, served over HTTPS with a Tailscale-issued certificate (required for iPhone camera access — see decision 7 above)
+8. End-to-end test via Tailscale on Chromebook, at least one Android device if available, and both parents' iPhones (camera scanning + general usability)
 
 Always check this file before making architectural choices. If a request conflicts with a confirmed decision above, flag it instead of silently changing the approach.

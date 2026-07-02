@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Pasal POS</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<div class="layout">
+
+  <section class="controls">
+    <div class="top-row">
+      <button id="scan-btn" class="btn btn-scan" type="button">📷 SCAN</button>
+      <input id="search-input" type="search" placeholder="Search item…"
+             autocomplete="off" autocapitalize="off" spellcheck="false">
+    </div>
+
+    <ul id="search-results" class="search-results" hidden></ul>
+
+    <div id="quick-taps" class="quick-taps"></div>
+
+    <button id="quick-add-btn" class="btn btn-quick-add" type="button">+ Quick Add item</button>
+  </section>
+
+  <section class="bill">
+    <h2 class="bill-title">Bill</h2>
+    <ul id="bill-lines" class="bill-lines"></ul>
+    <div class="bill-footer">
+      <div class="bill-total-row">
+        <span>Total</span>
+        <strong id="bill-total">Rs. 0.00</strong>
+      </div>
+      <button id="new-sale-btn" class="btn btn-new-sale" type="button" disabled>NEW SALE</button>
+    </div>
+  </section>
+
+</div>
+
+<!-- Weight pad modal -->
+<div id="weight-modal" class="modal" hidden>
+  <div class="modal-box">
+    <h3 id="weight-title">Rice</h3>
+    <div class="weight-display">
+      <span id="weight-value">0</span> kg
+      <span id="weight-line-total" class="weight-line-total">Rs. 0.00</span>
+    </div>
+    <div class="numpad">
+      <button data-key="7">7</button><button data-key="8">8</button><button data-key="9">9</button>
+      <button data-key="4">4</button><button data-key="5">5</button><button data-key="6">6</button>
+      <button data-key="1">1</button><button data-key="2">2</button><button data-key="3">3</button>
+      <button data-key=".">.</button><button data-key="0">0</button><button data-key="del">⌫</button>
+    </div>
+    <div class="modal-actions">
+      <button id="weight-cancel" class="btn btn-cancel" type="button">Cancel</button>
+      <button id="weight-ok" class="btn btn-ok" type="button" disabled>ADD</button>
+    </div>
+  </div>
+</div>
+
+<!-- Quick Add modal -->
+<div id="quick-add-modal" class="modal" hidden>
+  <div class="modal-box">
+    <h3>Quick Add</h3>
+    <p id="quick-add-barcode-note" class="barcode-note" hidden></p>
+    <label class="field">
+      <span>Name</span>
+      <input id="quick-add-name" type="text" autocomplete="off">
+    </label>
+    <label class="field">
+      <span>Price (Rs.)</span>
+      <input id="quick-add-price" type="number" inputmode="decimal" min="0" step="0.01">
+    </label>
+    <div class="modal-actions">
+      <button id="quick-add-cancel" class="btn btn-cancel" type="button">Cancel</button>
+      <button id="quick-add-save" class="btn btn-ok" type="button">SAVE &amp; ADD</button>
+    </div>
+  </div>
+</div>
+
+<!-- Scanner modal -->
+<div id="scanner-modal" class="modal" hidden>
+  <div class="modal-box modal-box-scanner">
+    <h3>Scan barcode</h3>
+    <div id="scanner-viewport" class="scanner-viewport">
+      <video id="scanner-video" playsinline hidden></video>
+      <div id="html5qr-region"></div>
+    </div>
+    <p id="scanner-status" class="scanner-status">Starting camera…</p>
+    <div class="modal-actions">
+      <button id="scanner-cancel" class="btn btn-cancel" type="button">Close</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast" hidden></div>
+
+<script src="{{ url_for('static', filename='html5-qrcode.min.js') }}"></script>
+<script src="{{ url_for('static', filename='scanner.js') }}"></script>
+<script src="{{ url_for('static', filename='cashier.js') }}"></script>
+</body>
+</html>

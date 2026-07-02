@@ -2,10 +2,14 @@
 
 import os
 import sqlite3
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 STORE_DB_PATH = os.path.join(DATA_DIR, "store.db")
 SALES_DB_PATH = os.path.join(DATA_DIR, "sales.db")
+
+SHOP_TZ = ZoneInfo("Asia/Kathmandu")
 
 
 def get_store_db():
@@ -80,3 +84,91 @@ def init_db():
     """Create both databases and their schemas if they don't already exist."""
     init_store_db()
     init_sales_db()
+
+
+def search_products(query, limit=20):
+    """Search active products by name, case-insensitive substring match."""
+    conn = get_store_db()
+    rows = conn.execute(
+        """
+        SELECT * FROM products
+        WHERE active = 1 AND name LIKE ? COLLATE NOCASE
+        ORDER BY name
+        LIMIT ?
+        """,
+        (f"%{query}%", limit),
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_product_by_barcode(barcode):
+    """Return the active product with this barcode, or None."""
+    conn = get_store_db()
+    row = conn.execute(
+        "SELECT * FROM products WHERE active = 1 AND barcode = ?", (barcode,)
+    ).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def get_quick_tap_products():
+    """Return active weighed products and LPG products for the quick-tap buttons."""
+    conn = get_store_db()
+    rows = conn.execute(
+        """
+        SELECT * FROM products
+        WHERE active = 1 AND category IN ('weighed', 'lpg')
+        ORDER BY category DESC, id
+        """
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def add_product(name, price, barcode=None, category="other", is_weighed=0, unit="piece"):
+    """Insert a product and return it as a dict."""
+    conn = get_store_db()
+    cur = conn.execute(
+        """
+        INSERT INTO products (barcode, name, category, price, is_weighed, unit, active)
+        VALUES (?, ?, ?, ?, ?, ?, 1)
+        """,
+        (barcode, name, category, price, is_weighed, unit),
+    )
+    conn.commit()
+    row = conn.execute("SELECT * FROM products WHERE id = ?", (cur.lastrowid,)).fetchone()
+    conn.close()
+    return dict(row)
+
+
+def save_sale(items):
+    """Save a sale with its line items. Timestamps use Asia/Kathmandu shop time.
+
+    items: list of dicts with product_name, quantity, unit_price, line_total.
+    Returns the saved sale as a dict.
+    """
+    now = datetime.now(SHOP_TZ)
+    date = now.date().isoformat()
+    time = now.strftime("%H:%M:%S")
+    total = round(sum(item["line_total"] for item in items), 2)
+
+    conn = get_sales_db()
+    cur = conn.execute(
+        "INSERT INTO sales (date, time, total, item_count) VALUES (?, ?, ?, ?)",
+        (date, time, total, len(items)),
+    )
+    sale_id = cur.lastrowid
+    conn.executemany(
+        """
+        INSERT INTO sale_items (sale_id, product_name, quantity, unit_price, line_total)
+        VALUES (?, ?, ?, ?, ?)
+        """,
+        [
+            (sale_id, i["product_name"], i["quantity"], i["unit_price"], i["line_total"])
+            for i in items
+        ],
+    )
+    conn.commit()
+    conn.close()
+    return {"sale_id": sale_id, "date": date, "time": time, "total": total, "item_count": len(items)}
