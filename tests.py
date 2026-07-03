@@ -237,6 +237,26 @@ def run():
     check("admin category filter (lpg only)", b"LPG Refill" in html and b"Basmati Rice" not in html)
 
     # ---------------------------------------------------------------
+    section("Categories — cosmetics + extensibility")
+    # Quick Add a fixed item with an explicit category
+    r = client.post("/api/products/quick-add", json={"name": "Face Cream", "price": 180, "category": "cosmetics"})
+    check("quick-add fixed item honours category", r.status_code == 201 and r.get_json()["category"] == "cosmetics")
+    # Quick Add with an unknown category falls back to 'other'
+    r = client.post("/api/products/quick-add", json={"name": "Mystery Item", "price": 20, "category": "nonsense"})
+    check("quick-add rejects unknown category (-> other)", r.get_json()["category"] == "other")
+    # Admin add with cosmetics (now in CATEGORIES, and no CHECK to block it)
+    client.post("/admin/products/new", data={
+        "name": "Lipstick", "barcode": "", "category": "cosmetics", "price": "250", "unit": "piece"})
+    lip = _product_by_name("Lipstick")
+    check("admin add cosmetics product", lip is not None and lip["category"] == "cosmetics")
+    check("cosmetics filter shows it", b"Lipstick" in client.get("/admin/products?category=cosmetics").data)
+    # The category column has no CHECK constraint, so a brand-new category name
+    # inserts fine at the DB layer (future categories = code-list change only).
+    db.add_product(name="Hardware Nail", price=10, category="hardware")
+    check("category column is not CHECK-constrained (extensible)",
+          _product_by_name("Hardware Nail")["category"] == "hardware")
+
+    # ---------------------------------------------------------------
     section("Admin — reports (daily/weekly/monthly)")
     _insert_backdated_sale("2026-06-24", 500.0)   # different ISO week
     _insert_backdated_sale("2026-06-01", 700.0)   # different month

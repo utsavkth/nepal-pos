@@ -15,6 +15,7 @@ PRODUCTS = [
     (None, "Flour", "weighed", 90.00, 1, "kg", "Flour"),
     (None, "LPG Cylinder Refill", "lpg", 1900.00, 0, "piece", None),
     (None, "Exercise Copy", "stationery", 40.00, 0, "piece", None),
+    ("8901030865278", "Fair Cream 50g", "cosmetics", 180.00, 0, "piece", None),
     (None, "Matchbox", "other", 5.00, 0, "piece", None),
 ]
 

@@ -65,7 +65,7 @@ def init_store_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             barcode TEXT,
             name TEXT NOT NULL,
-            category TEXT NOT NULL CHECK (category IN ('grocery', 'weighed', 'lpg', 'stationery', 'other')),
+            category TEXT NOT NULL,
             price REAL NOT NULL,
             is_weighed BOOLEAN NOT NULL DEFAULT 0,
             unit TEXT NOT NULL CHECK (unit IN ('kg', 'piece', 'packet', 'bottle')),
@@ -78,6 +78,40 @@ def init_store_db():
     columns = [r[1] for r in conn.execute("PRAGMA table_info(products)").fetchall()]
     if "weighed_group" not in columns:
         conn.execute("ALTER TABLE products ADD COLUMN weighed_group TEXT")
+    # Migration: older tables had a CHECK constraint pinning `category` to a
+    # fixed list, which meant a schema rebuild to add a category. Drop it and
+    # enforce the allowed list in app code (CATEGORIES) instead, so new
+    # categories are just a code change. SQLite can't ALTER away a CHECK, so
+    # rebuild the table (no products FK references it, so this is safe).
+    table_sql = conn.execute(
+        "SELECT sql FROM sqlite_master WHERE type='table' AND name='products'"
+    ).fetchone()[0]
+    if "CHECK (category IN" in table_sql:
+        conn.execute(
+            """
+            CREATE TABLE products_new (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                barcode TEXT,
+                name TEXT NOT NULL,
+                category TEXT NOT NULL,
+                price REAL NOT NULL,
+                is_weighed BOOLEAN NOT NULL DEFAULT 0,
+                unit TEXT NOT NULL CHECK (unit IN ('kg', 'piece', 'packet', 'bottle')),
+                active BOOLEAN NOT NULL DEFAULT 1,
+                weighed_group TEXT
+            )
+            """
+        )
+        conn.execute(
+            """
+            INSERT INTO products_new
+                (id, barcode, name, category, price, is_weighed, unit, active, weighed_group)
+            SELECT id, barcode, name, category, price, is_weighed, unit, active, weighed_group
+            FROM products
+            """
+        )
+        conn.execute("DROP TABLE products")
+        conn.execute("ALTER TABLE products_new RENAME TO products")
     # Backfill: classify weighed products that have no explicit group yet.
     for row in conn.execute(
         "SELECT id, name FROM products WHERE is_weighed = 1 AND weighed_group IS NULL"

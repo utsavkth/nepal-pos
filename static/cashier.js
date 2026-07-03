@@ -366,10 +366,13 @@ let quickAddBarcode = null;
 
 const quickAddWeighed = document.getElementById("quick-add-weighed");
 const quickAddGroupField = document.getElementById("quick-add-group-field");
+const quickAddCategoryField = document.getElementById("quick-add-category-field");
 const quickAddPriceLabel = document.getElementById("quick-add-price-label");
 
 quickAddWeighed.addEventListener("change", () => {
+  // Weighed items use the weighed-group picker; fixed items use the category picker.
   quickAddGroupField.hidden = !quickAddWeighed.checked;
+  quickAddCategoryField.hidden = quickAddWeighed.checked;
   quickAddPriceLabel.textContent = quickAddWeighed.checked
     ? "Price per kg (Rs.)"
     : "Price (Rs.)";
@@ -388,8 +391,10 @@ function openQuickAdd(barcode = null) {
   document.getElementById("quick-add-price").value = "";
   quickAddWeighed.checked = false;
   quickAddGroupField.hidden = true;
+  quickAddCategoryField.hidden = false;
   quickAddPriceLabel.textContent = "Price (Rs.)";
   document.getElementById("quick-add-group").value = "Rice";
+  document.getElementById("quick-add-category").value = "grocery";
   quickAddModal.hidden = false;
   document.getElementById("quick-add-name").focus();
 }
@@ -418,6 +423,9 @@ document.getElementById("quick-add-save").addEventListener("click", async () => 
         weighed_group: quickAddWeighed.checked
           ? document.getElementById("quick-add-group").value
           : null,
+        category: quickAddWeighed.checked
+          ? null
+          : document.getElementById("quick-add-category").value,
       }),
     });
     if (!res.ok) throw new Error();

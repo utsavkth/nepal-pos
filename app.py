@@ -25,8 +25,11 @@ import db
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY") or secrets.token_hex(32)
 
-CATEGORIES = ["grocery", "weighed", "lpg", "stationery", "other"]
+CATEGORIES = ["grocery", "weighed", "lpg", "stationery", "cosmetics", "other"]
 UNITS = ["kg", "piece", "packet", "bottle"]
+# Categories offered for a fixed-price Quick Add (weighed items are categorised
+# by the weighed-group picker instead). Extend CATEGORIES / this list to add more.
+QUICK_ADD_CATEGORIES = ["grocery", "cosmetics", "stationery", "lpg", "other"]
 MIN_PASSWORD_LEN = 8
 
 
@@ -99,7 +102,10 @@ def api_quick_add():
             weighed_group=weighed_group,
         )
     else:
-        product = db.add_product(name=name, price=price, barcode=barcode)
+        category = data.get("category") or "other"
+        if category not in QUICK_ADD_CATEGORIES:
+            category = "other"
+        product = db.add_product(name=name, price=price, barcode=barcode, category=category)
     return jsonify(product), 201
 
 

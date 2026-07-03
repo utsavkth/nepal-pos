@@ -34,7 +34,9 @@ Owner: Utsav (Sydney). Users: non-technical family members in the shop.
 ## Database schema
 
 products (store.db):
-id INTEGER PK, barcode TEXT nullable, name TEXT, category TEXT (grocery/weighed/lpg/stationery/other), price REAL, is_weighed BOOLEAN, unit TEXT (kg/piece/packet/bottle), active BOOLEAN (soft delete)
+id INTEGER PK, barcode TEXT nullable, name TEXT, category TEXT (grocery/weighed/lpg/stationery/cosmetics/other), price REAL, is_weighed BOOLEAN, unit TEXT (kg/piece/packet/bottle), active BOOLEAN (soft delete)
+
+The `category` column is NOT constrained by a DB CHECK — the allowed list lives in app code (`CATEGORIES` in `app.py`), so new categories (cosmetics was added this way) need only a code-list change, no schema migration. Both the admin add/edit form and the Quick Add form (for fixed-price items) expose the category picker.
 
 sales (sales.db):
 sale_id INTEGER PK, date TEXT (ISO), time TEXT (HH:MM:SS), total REAL, item_count INTEGER
