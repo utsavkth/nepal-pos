@@ -34,12 +34,12 @@ function renderBill() {
     name.textContent = line.product_name;
     const detail = document.createElement("div");
     detail.className = "bill-line-detail";
-    const per = line.is_weighed ? "/kg" : "";
+    const per = line.is_weighed ? t("perKg") : "";
     let detailText = line.is_weighed
-      ? `${line.quantity} kg × ${formatRs(line.unit_price)}${per}`
+      ? `${line.quantity} ${t("kg")} × ${formatRs(line.unit_price)}${per}`
       : `${line.quantity} × ${formatRs(line.unit_price)}`;
     if (line.unit_price !== line.original_price) {
-      detailText += ` (was ${formatRs(line.original_price)}${per})`;
+      detailText += ` (${t("was")}${formatRs(line.original_price)}${per})`;
       detail.classList.add("overridden");
     }
     detail.textContent = detailText;
@@ -126,7 +126,7 @@ searchInput.addEventListener("input", () => {
       const products = await res.json();
       renderSearchResults(products);
     } catch {
-      showToast("Search failed — check connection");
+      showToast(t("searchFailed"));
     }
   }, 150);
 });
@@ -137,7 +137,7 @@ function renderSearchResults(products) {
   if (products.length === 0) {
     const li = document.createElement("li");
     li.className = "no-results";
-    li.textContent = "No items found — use Quick Add";
+    li.textContent = t("noResults");
     searchResults.appendChild(li);
     return;
   }
@@ -147,7 +147,7 @@ function renderSearchResults(products) {
     name.textContent = p.name;
     const price = document.createElement("span");
     price.className = "result-price";
-    price.textContent = formatRs(p.price) + (p.is_weighed ? "/kg" : "");
+    price.textContent = formatRs(p.price) + (p.is_weighed ? t("perKg") : "");
     li.append(name, price);
     li.addEventListener("click", () => {
       if (p.is_weighed) {
@@ -178,13 +178,13 @@ async function loadQuickTaps() {
       btn.type = "button";
       btn.className = "tap-weighed";
       const name = document.createElement("span");
-      name.textContent = group.label;
+      name.textContent = groupLabel(group.label);
       const sub = document.createElement("span");
       sub.className = "tap-price";
       sub.textContent =
         group.products.length === 1
-          ? "1 variety"
-          : group.products.length + " varieties";
+          ? t("oneVariety")
+          : group.products.length + " " + t("varieties");
       btn.append(name, sub);
       btn.addEventListener("click", () => openVarietyList(group));
       container.appendChild(btn);
@@ -201,12 +201,12 @@ async function loadQuickTaps() {
       btn.append(name, price);
       btn.addEventListener("click", () => {
         addToBill(p, 1);
-        showToast(p.name + " added");
+        showToast(p.name + t("added"));
       });
       container.appendChild(btn);
     });
   } catch {
-    showToast("Could not load quick buttons");
+    showToast(t("couldNotLoadQuick"));
   }
 }
 
@@ -215,13 +215,13 @@ async function loadQuickTaps() {
 const varietyModal = document.getElementById("variety-modal");
 
 function openVarietyList(group) {
-  document.getElementById("variety-title").textContent = group.label;
+  document.getElementById("variety-title").textContent = groupLabel(group.label);
   const list = document.getElementById("variety-list");
   list.innerHTML = "";
   if (group.products.length === 0) {
     const li = document.createElement("li");
     li.className = "variety-empty";
-    li.textContent = "No " + group.label + " items yet — add one in Admin or Quick Add.";
+    li.textContent = t("noVarieties1") + groupLabel(group.label) + t("noVarieties2");
     list.appendChild(li);
   }
   group.products.forEach((p) => {
@@ -232,7 +232,7 @@ function openVarietyList(group) {
     name.textContent = p.name;
     const price = document.createElement("span");
     price.className = "result-price";
-    price.textContent = formatRs(p.price) + "/kg";
+    price.textContent = formatRs(p.price) + t("perKg");
     btn.append(name, price);
     btn.addEventListener("click", () => {
       varietyModal.hidden = true;
@@ -258,7 +258,7 @@ function openWeightPad(product) {
   weightProduct = product;
   weightStr = "";
   document.getElementById("weight-title").textContent =
-    product.name + " — " + formatRs(product.price) + "/kg";
+    product.name + " — " + formatRs(product.price) + t("perKg");
   updateWeightDisplay();
   weightModal.hidden = false;
 }
@@ -311,14 +311,14 @@ function openPriceOverride(index) {
   priceLineIndex = index;
   priceStr = "";
   const line = bill[index];
-  const per = line.is_weighed ? "/kg" : "";
+  const per = line.is_weighed ? t("perKg") : "";
   document.getElementById("price-title").textContent = line.product_name;
   document.getElementById("price-current").textContent =
-    "Current price: " + formatRs(line.unit_price) + per +
+    t("currentPrice") + formatRs(line.unit_price) + per +
     (line.unit_price !== line.original_price
-      ? " (normal " + formatRs(line.original_price) + per + ")"
+      ? " (" + t("normalPrice") + formatRs(line.original_price) + per + ")"
       : "");
-  document.getElementById("price-unit-suffix").textContent = line.is_weighed ? " per kg" : "";
+  document.getElementById("price-unit-suffix").textContent = line.is_weighed ? t("perKgSuffix") : "";
   updatePriceDisplay();
   priceModal.hidden = false;
 }
@@ -380,7 +380,7 @@ function updateQuickAddPickers() {
   quickAddCategorySelect.disabled = weighed;
   quickAddGroupField.classList.toggle("field-disabled", !weighed);
   quickAddCategoryField.classList.toggle("field-disabled", weighed);
-  quickAddPriceLabel.textContent = weighed ? "Price per kg (Rs.)" : "Price (Rs.)";
+  quickAddPriceLabel.textContent = weighed ? t("pricePerKg") : t("price");
 }
 
 quickAddWeighed.addEventListener("change", updateQuickAddPickers);
@@ -389,7 +389,7 @@ function openQuickAdd(barcode = null) {
   quickAddBarcode = barcode;
   const note = document.getElementById("quick-add-barcode-note");
   if (barcode) {
-    note.textContent = "New barcode: " + barcode + " — will be saved with this item.";
+    note.textContent = t("newBarcode1") + barcode + t("newBarcode2");
     note.hidden = false;
   } else {
     note.hidden = true;
@@ -413,7 +413,7 @@ document.getElementById("quick-add-save").addEventListener("click", async () => 
   const name = document.getElementById("quick-add-name").value.trim();
   const price = parseFloat(document.getElementById("quick-add-price").value);
   if (!name || !(price > 0)) {
-    showToast("Enter a name and a price");
+    showToast(t("enterNamePrice"));
     return;
   }
   try {
@@ -438,14 +438,14 @@ document.getElementById("quick-add-save").addEventListener("click", async () => 
     quickAddModal.hidden = true;
     loadQuickTaps(); // a new weighed variety should appear on its category button
     if (product.is_weighed) {
-      showToast(product.name + " saved — enter the weight");
+      showToast(product.name + t("savedEnterWeight"));
       openWeightPad(product);
     } else {
       addToBill(product, 1);
-      showToast(product.name + " saved and added");
+      showToast(product.name + t("savedAndAdded"));
     }
   } catch {
-    showToast("Could not save item");
+    showToast(t("couldNotSaveItem"));
   }
 });
 
@@ -458,7 +458,7 @@ async function handleScannedBarcode(barcode) {
   try {
     const res = await fetch("/api/products/barcode/" + encodeURIComponent(barcode));
     if (res.status === 404) {
-      showToast("Not in the system yet — add it now", 2200);
+      showToast(t("notInSystem"), 2200);
       openQuickAdd(barcode);
       return;
     }
@@ -467,10 +467,10 @@ async function handleScannedBarcode(barcode) {
       openWeightPad(product);
     } else {
       addToBill(product, 1);
-      showToast(product.name + " added");
+      showToast(product.name + t("added"));
     }
   } catch {
-    showToast("Lookup failed — check connection");
+    showToast(t("lookupFailed"));
   }
 }
 
@@ -484,7 +484,7 @@ document.getElementById("clear-bill-btn").addEventListener("click", () => {
   if (bill.length === 0) return;
   bill.length = 0;
   renderBill();
-  showToast("Bill cleared");
+  showToast(t("billCleared"));
 });
 
 /* ---- New sale (confirmation guards against accidental taps) ---- */
@@ -526,13 +526,23 @@ async function finalizeSale() {
     bill.length = 0;
     renderBill();
     confirmModal.hidden = true;
-    showToast("Sale saved — " + formatRs(sale.total), 2500);
+    showToast(t("saleSaved") + formatRs(sale.total), 2500);
   } catch {
-    showToast("Could not save sale — try again");
+    showToast(t("couldNotSaveSale"));
   } finally {
     okBtn.disabled = false;
   }
 }
+
+/* ---- Language toggle (decision 15: chrome only, persists per device) ---- */
+
+document.getElementById("lang-toggle").addEventListener("click", toggleLang);
+
+window.addEventListener("pos:langchange", () => {
+  renderBill();
+  loadQuickTaps();
+  updateQuickAddPickers();
+});
 
 /* ---- Init ---- */
 

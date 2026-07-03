@@ -24,13 +24,12 @@ let preferredFacing = "environment"; // remembered for the session; rear by defa
 function startScanner(onScan) {
   currentOnScan = onScan;
   scannerModal.hidden = false;
-  scannerStatus.textContent = "Starting camera…";
+  scannerStatus.textContent = t("startingCamera");
   scannerSwitch.hidden = true; // shown only once we confirm 2+ cameras exist
   scanning = true;
 
   if (!window.isSecureContext) {
-    scannerStatus.textContent =
-      "Camera needs a secure (HTTPS) connection. Open the https:// address.";
+    scannerStatus.textContent = t("httpsNeeded");
     return;
   }
   startCameraStream();
@@ -49,7 +48,7 @@ function startCameraStream() {
   } else if (window.Html5Qrcode) {
     startHtml5QrScanner();
   } else {
-    scannerStatus.textContent = "No barcode scanner available in this browser.";
+    scannerStatus.textContent = t("noScanner");
   }
 }
 
@@ -63,7 +62,7 @@ async function startNativeScanner() {
     html5qrRegion.hidden = true;
     scannerVideo.srcObject = nativeStream;
     await scannerVideo.play();
-    scannerStatus.textContent = "Point the camera at the barcode";
+    scannerStatus.textContent = t("pointCamera");
     updateSwitchVisibility();
 
     const tick = async () => {
@@ -97,7 +96,7 @@ function startHtml5QrScanner() {
       () => { /* per-frame decode misses are normal */ }
     )
     .then(() => {
-      scannerStatus.textContent = "Point the camera at the barcode";
+      scannerStatus.textContent = t("pointCamera");
       updateSwitchVisibility();
     })
     .catch((err) => {
@@ -120,12 +119,12 @@ async function updateSwitchVisibility() {
 function cameraErrorMessage(err) {
   const name = err && err.name;
   if (name === "NotAllowedError") {
-    return "Camera permission was denied. Allow camera access in the browser settings.";
+    return t("cameraDenied");
   }
   if (name === "NotFoundError") {
-    return "No camera found on this device.";
+    return t("noCamera");
   }
-  return "Could not start the camera. Close other apps using it and try again.";
+  return t("cameraFailed");
 }
 
 function stopCameraTracks() {
@@ -155,7 +154,7 @@ function stopScanner() {
 
 async function switchCamera() {
   preferredFacing = preferredFacing === "environment" ? "user" : "environment";
-  scannerStatus.textContent = "Switching camera…";
+  scannerStatus.textContent = t("switchingCamera");
   await stopCameraTracks();
   startCameraStream();
 }

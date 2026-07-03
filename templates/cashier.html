@@ -13,12 +13,15 @@
   <section class="controls">
     <div class="controls-header">
       <span class="brand">Khatiwada Store</span>
-      <a class="admin-link" href="{{ url_for('admin_home') }}">⚙ Admin</a>
+      <div class="header-actions">
+        <button id="lang-toggle" class="lang-toggle" type="button" data-i18n="langToggle">नेपाली</button>
+        <a class="admin-link" href="{{ url_for('admin_home') }}" data-i18n="admin">⚙ Admin</a>
+      </div>
     </div>
 
     <div class="top-row">
-      <button id="scan-btn" class="btn btn-scan" type="button">📷 SCAN</button>
-      <input id="search-input" type="search" placeholder="Search item…"
+      <button id="scan-btn" class="btn btn-scan" type="button" data-i18n="scan">📷 SCAN</button>
+      <input id="search-input" type="search" placeholder="Search item…" data-i18n-placeholder="searchPlaceholder"
              autocomplete="off" autocapitalize="off" spellcheck="false">
     </div>
 
@@ -26,21 +29,21 @@
 
     <div id="quick-taps" class="quick-taps"></div>
 
-    <button id="quick-add-btn" class="btn btn-quick-add" type="button">+ Quick Add item</button>
+    <button id="quick-add-btn" class="btn btn-quick-add" type="button" data-i18n="quickAddBtn">+ Quick Add item</button>
   </section>
 
   <section class="bill">
     <div class="bill-title">
-      <span>Bill</span>
-      <button id="clear-bill-btn" class="btn-clear-bill" type="button" disabled>Clear</button>
+      <span data-i18n="bill">Bill</span>
+      <button id="clear-bill-btn" class="btn-clear-bill" type="button" disabled data-i18n="clear">Clear</button>
     </div>
     <ul id="bill-lines" class="bill-lines"></ul>
     <div class="bill-footer">
       <div class="bill-total-row">
-        <span>Total</span>
+        <span data-i18n="total">Total</span>
         <strong id="bill-total">Rs. 0.00</strong>
       </div>
-      <button id="new-sale-btn" class="btn btn-new-sale" type="button" disabled>NEW SALE</button>
+      <button id="new-sale-btn" class="btn btn-new-sale" type="button" disabled data-i18n="newSale">NEW SALE</button>
     </div>
   </section>
 
@@ -51,7 +54,7 @@
   <div class="modal-box">
     <h3 id="weight-title">Rice</h3>
     <div class="weight-display">
-      <span id="weight-value">0</span> kg
+      <span id="weight-value">0</span> <span data-i18n="kg">kg</span>
       <span id="weight-line-total" class="weight-line-total">Rs. 0.00</span>
     </div>
     <div class="numpad">
@@ -61,8 +64,8 @@
       <button data-key=".">.</button><button data-key="0">0</button><button data-key="del">⌫</button>
     </div>
     <div class="modal-actions">
-      <button id="weight-cancel" class="btn btn-cancel" type="button">Cancel</button>
-      <button id="weight-ok" class="btn btn-ok" type="button" disabled>ADD</button>
+      <button id="weight-cancel" class="btn btn-cancel" type="button" data-i18n="cancel">Cancel</button>
+      <button id="weight-ok" class="btn btn-ok" type="button" disabled data-i18n="add">ADD</button>
     </div>
   </div>
 </div>
@@ -73,7 +76,7 @@
     <h3 id="variety-title">Rice</h3>
     <ul id="variety-list" class="variety-list"></ul>
     <div class="modal-actions">
-      <button id="variety-cancel" class="btn btn-cancel" type="button">Cancel</button>
+      <button id="variety-cancel" class="btn btn-cancel" type="button" data-i18n="cancel">Cancel</button>
     </div>
   </div>
 </div>
@@ -85,7 +88,7 @@
     <p id="price-current" class="price-current"></p>
     <div class="weight-display">
       <span id="price-value">0</span>
-      <span class="weight-line-total">new price in Rs.<span id="price-unit-suffix"></span></span>
+      <span class="weight-line-total"><span data-i18n="changePriceNew">new price in Rs.</span><span id="price-unit-suffix"></span></span>
     </div>
     <div class="numpad">
       <button data-key="7">7</button><button data-key="8">8</button><button data-key="9">9</button>
@@ -94,8 +97,8 @@
       <button data-key=".">.</button><button data-key="0">0</button><button data-key="del">⌫</button>
     </div>
     <div class="modal-actions">
-      <button id="price-cancel" class="btn btn-cancel" type="button">Cancel</button>
-      <button id="price-ok" class="btn btn-ok" type="button" disabled>CHANGE</button>
+      <button id="price-cancel" class="btn btn-cancel" type="button" data-i18n="cancel">Cancel</button>
+      <button id="price-ok" class="btn btn-ok" type="button" disabled data-i18n="change">CHANGE</button>
     </div>
   </div>
 </div>
@@ -103,11 +106,11 @@
 <!-- Confirm sale modal (guards against accidental NEW SALE taps) -->
 <div id="confirm-modal" class="modal" hidden>
   <div class="modal-box">
-    <h3>Confirm sale</h3>
-    <p class="confirm-text">Confirm this sale?<strong id="confirm-amount">Rs. 0.00</strong></p>
+    <h3 data-i18n="confirmSaleTitle">Confirm sale</h3>
+    <p class="confirm-text"><span data-i18n="confirmSaleText">Confirm this sale?</span><strong id="confirm-amount">Rs. 0.00</strong></p>
     <div class="modal-actions">
-      <button id="confirm-cancel" class="btn btn-cancel" type="button">Cancel</button>
-      <button id="confirm-ok" class="btn btn-ok" type="button">Confirm &amp; save</button>
+      <button id="confirm-cancel" class="btn btn-cancel" type="button" data-i18n="cancel">Cancel</button>
+      <button id="confirm-ok" class="btn btn-ok" type="button" data-i18n="confirmSave">Confirm &amp; save</button>
     </div>
   </div>
 </div>
@@ -115,43 +118,43 @@
 <!-- Quick Add modal -->
 <div id="quick-add-modal" class="modal" hidden>
   <div class="modal-box">
-    <h3>Quick Add</h3>
+    <h3 data-i18n="quickAddTitle">Quick Add</h3>
     <p id="quick-add-barcode-note" class="barcode-note" hidden></p>
     <label class="field">
-      <span>Name</span>
+      <span data-i18n="name">Name</span>
       <input id="quick-add-name" type="text" autocomplete="off">
     </label>
     <label class="field field-checkbox">
       <input id="quick-add-weighed" type="checkbox">
-      <span>Sold by weight (per kg)</span>
+      <span data-i18n="soldByWeight">Sold by weight (per kg)</span>
     </label>
     <label class="field" id="quick-add-group-field">
-      <span>Weighed category</span>
+      <span data-i18n="weighedCategory">Weighed category</span>
       <select id="quick-add-group" disabled>
-        <option value="Rice">Rice</option>
-        <option value="Dal">Dal</option>
-        <option value="Sugar">Sugar</option>
-        <option value="Flour">Flour</option>
-        <option value="Other">Other</option>
+        <option value="Rice" data-i18n="groupRice">Rice</option>
+        <option value="Dal" data-i18n="groupDal">Dal</option>
+        <option value="Sugar" data-i18n="groupSugar">Sugar</option>
+        <option value="Flour" data-i18n="groupFlour">Flour</option>
+        <option value="Other" data-i18n="groupOther">Other</option>
       </select>
     </label>
     <label class="field" id="quick-add-category-field">
-      <span>Category</span>
+      <span data-i18n="category">Category</span>
       <select id="quick-add-category">
-        <option value="grocery">Grocery</option>
-        <option value="cosmetics">Cosmetics</option>
-        <option value="stationery">Stationery</option>
-        <option value="lpg">LPG</option>
-        <option value="other">Other</option>
+        <option value="grocery" data-i18n="catGrocery">Grocery</option>
+        <option value="cosmetics" data-i18n="catCosmetics">Cosmetics</option>
+        <option value="stationery" data-i18n="catStationery">Stationery</option>
+        <option value="lpg" data-i18n="catLpg">LPG</option>
+        <option value="other" data-i18n="catOther">Other</option>
       </select>
     </label>
     <label class="field">
-      <span id="quick-add-price-label">Price (Rs.)</span>
+      <span id="quick-add-price-label" data-i18n="price">Price (Rs.)</span>
       <input id="quick-add-price" type="number" inputmode="decimal" min="0" step="0.01">
     </label>
     <div class="modal-actions">
-      <button id="quick-add-cancel" class="btn btn-cancel" type="button">Cancel</button>
-      <button id="quick-add-save" class="btn btn-ok" type="button">SAVE &amp; ADD</button>
+      <button id="quick-add-cancel" class="btn btn-cancel" type="button" data-i18n="cancel">Cancel</button>
+      <button id="quick-add-save" class="btn btn-ok" type="button" data-i18n="saveAdd">SAVE &amp; ADD</button>
     </div>
   </div>
 </div>
@@ -159,21 +162,22 @@
 <!-- Scanner modal -->
 <div id="scanner-modal" class="modal" hidden>
   <div class="modal-box modal-box-scanner">
-    <h3>Scan barcode</h3>
+    <h3 data-i18n="scanBarcodeTitle">Scan barcode</h3>
     <div id="scanner-viewport" class="scanner-viewport">
       <video id="scanner-video" playsinline hidden></video>
       <div id="html5qr-region"></div>
-      <button id="scanner-switch" class="scanner-switch" type="button" hidden>🔄 Flip camera</button>
+      <button id="scanner-switch" class="scanner-switch" type="button" hidden data-i18n="flipCamera">🔄 Flip camera</button>
     </div>
-    <p id="scanner-status" class="scanner-status">Starting camera…</p>
+    <p id="scanner-status" class="scanner-status" data-i18n="startingCamera">Starting camera…</p>
     <div class="modal-actions">
-      <button id="scanner-cancel" class="btn btn-cancel" type="button">Close</button>
+      <button id="scanner-cancel" class="btn btn-cancel" type="button" data-i18n="close">Close</button>
     </div>
   </div>
 </div>
 
 <div id="toast" class="toast" hidden></div>
 
+<script src="{{ url_for('static', filename='i18n.js') }}"></script>
 <script src="{{ url_for('static', filename='html5-qrcode.min.js') }}"></script>
 <script src="{{ url_for('static', filename='scanner.js') }}"></script>
 <script src="{{ url_for('static', filename='cashier.js') }}"></script>
