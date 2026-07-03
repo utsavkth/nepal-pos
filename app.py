@@ -1,7 +1,6 @@
 """Flask app for the Nepal Grocery POS."""
 
 import csv
-import hmac
 import io
 import os
 import secrets
@@ -19,16 +18,16 @@ from flask import (
     session,
     url_for,
 )
+from werkzeug.security import check_password_hash, generate_password_hash
 
 import db
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY") or secrets.token_hex(32)
 
-ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD")
-
 CATEGORIES = ["grocery", "weighed", "lpg", "stationery", "other"]
 UNITS = ["kg", "piece", "packet", "bottle"]
+MIN_PASSWORD_LEN = 8
 
 
 db.init_db()
@@ -138,11 +137,8 @@ def api_save_sale():
 def admin_required(view):
     @wraps(view)
     def wrapper(*args, **kwargs):
-        if not ADMIN_PASSWORD:
-            return (
-                "Admin panel is disabled: set the ADMIN_PASSWORD environment variable.",
-                503,
-            )
+        if not db.is_admin_password_set():
+            return redirect(url_for("admin_setup"))
         if not session.get("admin"):
             return redirect(url_for("admin_login", next=request.path))
         return view(*args, **kwargs)
@@ -150,17 +146,41 @@ def admin_required(view):
     return wrapper
 
 
+def _validate_new_password(pw, confirm):
+    """Return an error string for an invalid new password, or None if valid."""
+    if len(pw) < MIN_PASSWORD_LEN:
+        return f"Password must be at least {MIN_PASSWORD_LEN} characters."
+    if pw != confirm:
+        return "Passwords do not match."
+    return None
+
+
+@app.route("/admin/setup", methods=["GET", "POST"])
+def admin_setup():
+    # Only reachable until a password exists; afterwards, go to the login form.
+    if db.is_admin_password_set():
+        return redirect(url_for("admin_login"))
+    error = None
+    if request.method == "POST":
+        pw = request.form.get("password", "")
+        confirm = request.form.get("confirm", "")
+        error = _validate_new_password(pw, confirm)
+        if not error:
+            db.set_admin_password_hash(generate_password_hash(pw))
+            session["admin"] = True
+            flash("Admin password set. You're logged in.")
+            return redirect(url_for("admin_products"))
+    return render_template("admin_setup.html", error=error, min_len=MIN_PASSWORD_LEN)
+
+
 @app.route("/admin/login", methods=["GET", "POST"])
 def admin_login():
-    if not ADMIN_PASSWORD:
-        return (
-            "Admin panel is disabled: set the ADMIN_PASSWORD environment variable.",
-            503,
-        )
+    if not db.is_admin_password_set():
+        return redirect(url_for("admin_setup"))
     error = None
     if request.method == "POST":
         supplied = request.form.get("password", "")
-        if hmac.compare_digest(supplied, ADMIN_PASSWORD):
+        if check_password_hash(db.get_admin_password_hash(), supplied):
             session["admin"] = True
             next_url = request.args.get("next") or url_for("admin_products")
             if not next_url.startswith("/"):
@@ -174,6 +194,25 @@ def admin_login():
 def admin_logout():
     session.pop("admin", None)
     return redirect(url_for("admin_login"))
+
+
+@app.route("/admin/change-password", methods=["GET", "POST"])
+@admin_required
+def admin_change_password():
+    error = None
+    if request.method == "POST":
+        current = request.form.get("current", "")
+        pw = request.form.get("password", "")
+        confirm = request.form.get("confirm", "")
+        if not check_password_hash(db.get_admin_password_hash(), current):
+            error = "Current password is wrong."
+        else:
+            error = _validate_new_password(pw, confirm)
+            if not error:
+                db.set_admin_password_hash(generate_password_hash(pw))
+                flash("Password changed.")
+                return redirect(url_for("admin_products"))
+    return render_template("admin_change_password.html", error=error, min_len=MIN_PASSWORD_LEN)
 
 
 @app.route("/admin")

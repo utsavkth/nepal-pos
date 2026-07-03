@@ -34,8 +34,9 @@ cp .env.example .env
 python3 -c "import secrets; print('SECRET_KEY=' + secrets.token_hex(32))"
 ```
 
-Edit `.env` and set `ADMIN_PASSWORD` to a strong password and `SECRET_KEY` to
-the generated value. `.env` is gitignored — it never leaves the Pi.
+Edit `.env` and set `SECRET_KEY` to the generated value. `.env` is gitignored —
+it never leaves the Pi. There is no admin password here: you set it on the first
+visit to `/admin` (step 7) and can change it later from inside the panel.
 
 ## 3. Build and start the container
 
@@ -119,6 +120,10 @@ Open `https://uk-homeserver.tailea48bb.ts.net/` on:
    of the valid HTTPS cert; if the camera is blocked, re-check step 5/6.
 3. An **Android** device if available.
 
+The **first** time you open `/admin`, you'll get a one-time "Set Admin Password"
+screen — choose a strong password (min 8 characters); it's stored hashed in the
+database. After that, `/admin` shows the normal login form.
+
 Then walk through a full sale: scan/weigh a few items, use a price override,
 and press NEW SALE. Check the sale in `/admin` → Reports.
 
@@ -149,4 +154,5 @@ Add:
 - **Logs:** `docker compose logs -f`
 - **Back up the data:** copy `/data/nepal-pos/store.db` and
   `/data/nepal-pos/sales.db` somewhere safe (they're plain SQLite files).
-- **Change the admin password:** edit `.env`, then `docker compose up -d`.
+- **Change the admin password:** log in to `/admin` and use **Change password**
+  (no Pi access or restart needed).

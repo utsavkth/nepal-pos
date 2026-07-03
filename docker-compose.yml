@@ -11,7 +11,8 @@ services:
       # SQLite databases persist on the Pi's HDD (CLAUDE.md decision 5)
       - /data/nepal-pos:/app/data
     environment:
-      # Values come from a .env file next to this compose file (not committed).
-      # Compose fails fast with these messages if either is missing.
-      - ADMIN_PASSWORD=${ADMIN_PASSWORD:?set ADMIN_PASSWORD in .env}
+      # Session signing key, from a .env file next to this compose file (not
+      # committed). Compose fails fast with this message if it's missing.
+      # The admin password is NOT set here — it's chosen on first visit to
+      # /admin and stored hashed in the database.
       - SECRET_KEY=${SECRET_KEY:?set SECRET_KEY in .env}

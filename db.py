@@ -86,6 +86,15 @@ def init_store_db():
             "UPDATE products SET weighed_group = ? WHERE id = ?",
             (infer_weighed_group(row["name"]), row["id"]),
         )
+    # Key/value settings (currently just the hashed admin password).
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS settings (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL
+        )
+        """
+    )
     conn.commit()
     conn.close()
 
@@ -125,6 +134,41 @@ def init_db():
     """Create both databases and their schemas if they don't already exist."""
     init_store_db()
     init_sales_db()
+
+
+# ---- Settings / admin password -------------------------------------------
+
+ADMIN_PW_KEY = "admin_password_hash"
+
+
+def get_setting(key):
+    conn = get_store_db()
+    row = conn.execute("SELECT value FROM settings WHERE key = ?", (key,)).fetchone()
+    conn.close()
+    return row["value"] if row else None
+
+
+def set_setting(key, value):
+    conn = get_store_db()
+    conn.execute(
+        "INSERT INTO settings (key, value) VALUES (?, ?) "
+        "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        (key, value),
+    )
+    conn.commit()
+    conn.close()
+
+
+def get_admin_password_hash():
+    return get_setting(ADMIN_PW_KEY)
+
+
+def set_admin_password_hash(pw_hash):
+    set_setting(ADMIN_PW_KEY, pw_hash)
+
+
+def is_admin_password_set():
+    return get_admin_password_hash() is not None
 
 
 def search_products(query, limit=20):

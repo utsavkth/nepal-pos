@@ -12,14 +12,15 @@ import os
 import sys
 import tempfile
 
+from werkzeug.security import check_password_hash
+
 # Windows consoles default to cp1252; keep the em-dashes/output readable.
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
 
 # --- Isolate the database BEFORE importing the app -------------------------
-# app.py calls db.init_db() at import time and reads ADMIN_PASSWORD, so both
-# the DB paths and the env var must be set first.
-os.environ["ADMIN_PASSWORD"] = "test-pw"
+# app.py calls db.init_db() at import time, so the DB paths must be set first.
+# The admin password is no longer an env var — it's set via the first-run flow.
 _TMP = tempfile.mkdtemp(prefix="nepalpos-test-")
 
 import db  # noqa: E402
@@ -78,8 +79,12 @@ def seed():
     conn.close()
 
 
+ADMIN_PW = "test-pw-123"   # >= 8 chars
+NEW_PW = "new-pass-456"    # >= 8 chars
+
+
 def login(client):
-    return client.post("/admin/login", data={"password": "test-pw"}, follow_redirects=False)
+    return client.post("/admin/login", data={"password": ADMIN_PW}, follow_redirects=False)
 
 
 def run():
@@ -165,14 +170,34 @@ def run():
           client.post("/api/sales", json={"items": [{"product_name": "X", "quantity": -1, "unit_price": 5}]}).status_code == 400)
 
     # ---------------------------------------------------------------
-    section("Admin — authentication")
-    check("unauth /admin redirects to login", client.get("/admin").status_code == 302)
-    check("wrong password shows error", b"Wrong password" in client.post("/admin/login", data={"password": "nope"}).data)
-    # disabled when no password configured
-    saved_pw = app_module.ADMIN_PASSWORD
-    app_module.ADMIN_PASSWORD = None
-    check("admin disabled (503) when no password set", client.get("/admin/login").status_code == 503)
-    app_module.ADMIN_PASSWORD = saved_pw
+    section("Admin — first-run set-password + authentication")
+    # With no password stored yet, everything funnels to the setup screen.
+    check("no password yet: /admin -> setup",
+          client.get("/admin").headers.get("Location", "").endswith("/admin/setup"))
+    check("no password yet: /admin/login -> setup",
+          client.get("/admin/login").headers.get("Location", "").endswith("/admin/setup"))
+    check("setup screen shown", b"Set admin password" in client.get("/admin/setup").data)
+    # setup validation
+    check("setup rejects too-short password",
+          b"at least 8" in client.post("/admin/setup", data={"password": "short", "confirm": "short"}).data)
+    check("setup rejects mismatched confirm",
+          b"do not match" in client.post("/admin/setup", data={"password": "longenough1", "confirm": "different1"}).data)
+    check("no password stored after invalid attempts", not db.is_admin_password_set())
+    # set it for real -> auto-login, stored hashed
+    r = client.post("/admin/setup", data={"password": ADMIN_PW, "confirm": ADMIN_PW}, follow_redirects=False)
+    check("valid setup redirects into panel", r.status_code == 302 and r.headers["Location"].endswith("/admin/products"))
+    stored = db.get_admin_password_hash()
+    check("password stored hashed, not plaintext",
+          stored is not None and ADMIN_PW not in stored and check_password_hash(stored, ADMIN_PW))
+    check("setup auto-logged-in", client.get("/admin/products").status_code == 200)
+    check("setup can't reset once set (-> login)",
+          client.get("/admin/setup").headers.get("Location", "").endswith("/admin/login"))
+    # normal login flow against the stored hash
+    client.get("/admin/logout")
+    check("after logout: /admin -> login (not setup)",
+          "/admin/login" in client.get("/admin").headers.get("Location", ""))
+    check("wrong password rejected", b"Wrong password" in client.post("/admin/login", data={"password": "wrongpw12"}).data)
+    check("wrong password does not grant access", client.get("/admin/products").status_code == 302)
     login(client)
     check("correct password grants access to products", client.get("/admin/products").status_code == 200)
 
@@ -260,6 +285,24 @@ def run():
                              data={"file": (io.BytesIO(b"a,b,c\n1,2,3\n"), "x.csv")},
                              content_type="multipart/form-data")
     check("wrong header rejected", b"CSV header must be" in bad_header.data)
+
+    # ---------------------------------------------------------------
+    section("Admin — change password")
+    # (currently logged in with ADMIN_PW from the auth section)
+    r = client.post("/admin/change-password", data={"current": "wrongpw12", "password": NEW_PW, "confirm": NEW_PW})
+    check("wrong current password rejected", b"Current password is wrong" in r.data)
+    check("password unchanged after failed attempt", check_password_hash(db.get_admin_password_hash(), ADMIN_PW))
+    r = client.post("/admin/change-password", data={"current": ADMIN_PW, "password": NEW_PW, "confirm": "mismatch9"})
+    check("mismatched new password rejected", b"do not match" in r.data)
+    r = client.post("/admin/change-password",
+                    data={"current": ADMIN_PW, "password": NEW_PW, "confirm": NEW_PW}, follow_redirects=False)
+    check("valid change redirects to products", r.status_code == 302)
+    check("new password hash stored", check_password_hash(db.get_admin_password_hash(), NEW_PW))
+    # old no longer works, new one does
+    client.get("/admin/logout")
+    check("old password no longer logs in", b"Wrong password" in client.post("/admin/login", data={"password": ADMIN_PW}).data)
+    client.post("/admin/login", data={"password": NEW_PW})
+    check("new password logs in", client.get("/admin/products").status_code == 200)
 
     # ---------------------------------------------------------------
     print(f"\n{'='*40}\n{_passed} passed, {_failed} failed\n{'='*40}")

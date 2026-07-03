@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Set admin password — Pasal POS</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='admin.css') }}">
+</head>
+<body class="login-body">
+<form method="post" class="login-box">
+  <h1>Set admin password</h1>
+  <p class="hint">First-time setup — choose a password for the admin panel. Keep it safe; you'll need it to manage products and view reports.</p>
+  {% if error %}<p class="error">{{ error }}</p>{% endif %}
+  <label for="password">New password</label>
+  <input id="password" name="password" type="password" autofocus autocomplete="new-password" minlength="{{ min_len }}" required>
+  <label for="confirm">Confirm password</label>
+  <input id="confirm" name="confirm" type="password" autocomplete="new-password" minlength="{{ min_len }}" required>
+  <button type="submit">Set password</button>
+</form>
+</body>
+</html>

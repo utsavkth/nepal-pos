@@ -10,10 +10,10 @@ Owner: Utsav (Sydney). Users: non-technical family members in the shop.
 1. Stack: Python + Flask + SQLite + plain HTML/CSS/JavaScript. No other frameworks (no React, no FastAPI, no Postgres).
 2. Hosting: Docker container on uk-homeserver alongside the existing media stack. Not a VPS, not cloud.
 3. Remote access: Tailscale (already configured). Never suggest TeamViewer, AnyDesk, or port forwarding.
-4. Reverse proxy: Caddy (already running). Route: `pos.home` → Flask container. Config is appended to the existing Caddyfile.
+4. Reverse proxy: Caddy (already running). Tailnet name is `tailea48bb.ts.net` (MagicDNS + HTTPS Certificates already enabled in the Tailscale admin console). The Pi's device name in Tailscale is currently `UK-HOMESERVER`, giving it the address `uk-homeserver.tailea48bb.ts.net` — Utsav may rename the device to `pos` before generating the cert, which would make the address `pos.tailea48bb.ts.net` instead (cleaner for parents to type/bookmark). Whichever name is used, run `sudo tailscale cert <device>.tailea48bb.ts.net` ON THE PI to obtain a real Let's Encrypt-backed cert/key pair (works on iPhone, no browser warnings). Caddy must be configured to serve that cert/key for that domain — Caddy's own automatic HTTPS won't work for a private Tailscale-only name, so point it at the files `tailscale cert` produces. Certs expire (Let's Encrypt, ~90 days) and need periodic renewal via a cron job re-running `tailscale cert` and reloading Caddy. Do NOT use a plain custom hostname like `pos.home` — Tailscale can only issue certificates for real MagicDNS names under the tailnet domain.
 5. Database: SQLite files stored at `/data/nepal-pos/` on the Pi's HDD, mounted into the container at `/app/data`.
 6. Client: browser only, no app installation, no Electron, no PWA install requirement. Must run well on the Lenovo Chromebook Duet (primary, touchscreen) AND on iPhone 13 / iPhone 13 Pro Max (parents' secondary devices, Safari). UI must be responsive — large touch targets that work at both Chromebook and iPhone screen sizes.
-7. Barcode scanning: browser camera API (e.g. html5-qrcode or native BarcodeDetector with fallback), designed to work across Chromebook (ChromeOS Chrome), Android Chrome, and iPhone Safari. IMPORTANT: iOS Safari only allows camera access (getUserMedia) over a secure context (HTTPS). This means pos.home must be served over HTTPS via Tailscale, not plain HTTP — use `tailscale cert` to issue a certificate for pos.home and configure Caddy to serve it with TLS. This is a hard requirement for camera scanning to work on the iPhones, not optional polish.
+7. Barcode scanning: browser camera API (e.g. html5-qrcode or native BarcodeDetector with fallback), designed to work across Chromebook (ChromeOS Chrome), Android Chrome, and iPhone Safari/Chrome (all iOS browsers use WebKit, so the same rules apply regardless of which browser app is used). IMPORTANT: iOS only allows camera access (getUserMedia) over a secure context (HTTPS). This means the app must be served over HTTPS via its Tailscale MagicDNS name, not plain HTTP — see decision 4 for the exact domain and cert process. This is a hard requirement for camera scanning to work on the iPhones, not optional polish.
 8. Currency: Rs. (Nepali Rupee, NPR). Format all money as `Rs. 1,250.00`.
 9. Weighed items sold per kg: multiple varieties are expected (e.g. several kinds of Rice, several kinds of Dal/Lentils), not just one product per category. Quick-tap buttons are by CATEGORY (Rice, Dal, Sugar, Flour), not by a single fixed product. Tapping a category button shows a short list of that category's active products from the database (populated dynamically — grows as new varieties are added via admin or Quick Add), staff pick the specific variety, then the weight number pad opens.
 10. No receipt printer — display the total on screen only.
@@ -34,13 +34,16 @@ Owner: Utsav (Sydney). Users: non-technical family members in the shop.
 ## Database schema
 
 products (store.db):
-id INTEGER PK, barcode TEXT nullable, name TEXT, category TEXT (grocery/weighed/lpg/stationery/other), price REAL, is_weighed BOOLEAN, unit TEXT (kg/piece/packet/bottle), active BOOLEAN (soft delete), weighed_group TEXT nullable (Rice/Dal/Sugar/Flour/Other — quick-tap button grouping for weighed items, NULL for non-weighed)
+id INTEGER PK, barcode TEXT nullable, name TEXT, category TEXT (grocery/weighed/lpg/stationery/other), price REAL, is_weighed BOOLEAN, unit TEXT (kg/piece/packet/bottle), active BOOLEAN (soft delete)
 
 sales (sales.db):
 sale_id INTEGER PK, date TEXT (ISO), time TEXT (HH:MM:SS), total REAL, item_count INTEGER
 
 sale_items (sales.db):
 item_id INTEGER PK, sale_id INTEGER FK, product_name TEXT (snapshot at time of sale), quantity REAL, unit_price REAL, line_total REAL
+
+settings (store.db):
+key TEXT PK, value TEXT — small key/value table; currently holds the hashed admin password under key `admin_password_hash`
 
 ## Features
 
@@ -54,11 +57,21 @@ Cashier screen (the only daily screen — big buttons, dead simple, touch-friend
 7. NEW SALE button — saves transaction, clears the bill
 
 Admin panel (password protected):
+Authentication is set up on first use, not via an environment variable. On the
+first visit to `/admin` with no password stored, a one-time "Set Admin Password"
+screen appears (password + confirm, minimum 8 characters); the password is
+hashed with werkzeug's `generate_password_hash` and stored in the `settings`
+table — never in plain text and never in the environment. After that, `/admin`
+shows a normal login form checked against the stored hash. A logged-in admin can
+change the password from inside the panel (must enter the current password),
+so it can be updated without SSH/Pi access. `SECRET_KEY` is still an env var
+(Flask session signing); only the admin password moved into the database.
 1. Add / edit / deactivate products (soft delete via `active` flag)
 2. View all products, searchable, filterable by category
 3. Sales reports: daily, weekly, monthly totals
 4. Export sales to CSV
 5. Bulk product import via CSV
+6. Change admin password (requires the current password)
 
 ## Conventions
 
@@ -99,7 +112,7 @@ OUT OF SCOPE until the skeleton above is complete and tested.
 4. Full local testing of all scenarios
 5. Load the real product database
 6. Dockerise (Dockerfile + compose entry, port 5050:5000, volume mount)
-7. Caddy route for pos.home, served over HTTPS with a Tailscale-issued certificate (required for iPhone camera access — see decision 7 above)
+7. Caddy route serving the app over HTTPS at its Tailscale MagicDNS name, using a real cert from `tailscale cert` (required for iPhone camera access — see decision 4 and 7 above)
 8. End-to-end test via Tailscale on Chromebook, at least one Android device if available, and both parents' iPhones (camera scanning + general usability)
 
 Always check this file before making architectural choices. If a request conflicts with a confirmed decision above, flag it instead of silently changing the approach.
