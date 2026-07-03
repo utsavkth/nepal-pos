@@ -367,16 +367,23 @@ let quickAddBarcode = null;
 const quickAddWeighed = document.getElementById("quick-add-weighed");
 const quickAddGroupField = document.getElementById("quick-add-group-field");
 const quickAddCategoryField = document.getElementById("quick-add-category-field");
+const quickAddGroupSelect = document.getElementById("quick-add-group");
+const quickAddCategorySelect = document.getElementById("quick-add-category");
 const quickAddPriceLabel = document.getElementById("quick-add-price-label");
 
-quickAddWeighed.addEventListener("change", () => {
-  // Weighed items use the weighed-group picker; fixed items use the category picker.
-  quickAddGroupField.hidden = !quickAddWeighed.checked;
-  quickAddCategoryField.hidden = quickAddWeighed.checked;
-  quickAddPriceLabel.textContent = quickAddWeighed.checked
-    ? "Price per kg (Rs.)"
-    : "Price (Rs.)";
-});
+/* Both pickers stay visible; the one that doesn't apply is greyed out.
+   Weighed ticked -> weighed category active, regular category disabled.
+   Unticked -> the reverse. */
+function updateQuickAddPickers() {
+  const weighed = quickAddWeighed.checked;
+  quickAddGroupSelect.disabled = !weighed;
+  quickAddCategorySelect.disabled = weighed;
+  quickAddGroupField.classList.toggle("field-disabled", !weighed);
+  quickAddCategoryField.classList.toggle("field-disabled", weighed);
+  quickAddPriceLabel.textContent = weighed ? "Price per kg (Rs.)" : "Price (Rs.)";
+}
+
+quickAddWeighed.addEventListener("change", updateQuickAddPickers);
 
 function openQuickAdd(barcode = null) {
   quickAddBarcode = barcode;
@@ -390,11 +397,9 @@ function openQuickAdd(barcode = null) {
   document.getElementById("quick-add-name").value = "";
   document.getElementById("quick-add-price").value = "";
   quickAddWeighed.checked = false;
-  quickAddGroupField.hidden = true;
-  quickAddCategoryField.hidden = false;
-  quickAddPriceLabel.textContent = "Price (Rs.)";
-  document.getElementById("quick-add-group").value = "Rice";
-  document.getElementById("quick-add-category").value = "grocery";
+  quickAddGroupSelect.value = "Rice";
+  quickAddCategorySelect.value = "grocery";
+  updateQuickAddPickers();
   quickAddModal.hidden = false;
   document.getElementById("quick-add-name").focus();
 }

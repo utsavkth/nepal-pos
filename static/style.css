@@ -428,6 +428,8 @@ html, body {
   border-radius: var(--radius);
   background: #fff;
 }
+.field-disabled { opacity: 0.45; }
+.field-disabled select { background: #eef2f7; cursor: not-allowed; }
 .field-checkbox { flex-direction: row; align-items: center; gap: 12px; min-height: 44px; }
 .field-checkbox input { width: 28px; height: 28px; accent-color: var(--accent); }
 .barcode-note {
