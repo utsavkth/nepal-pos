@@ -23,6 +23,7 @@ The shop-facing display name shown in the UI is "Khatiwada Store"; "Nepal Grocer
 13. Quick Add auto-opens automatically the moment a barcode scan returns "not found" — staff should not have to notice the failure and manually open the form. Quick Add must support creating a new WEIGHED variety on the spot (not just fixed-price items) — staff need to be able to mark the new item as weighed, pick its category (Rice/Dal/Sugar/Flour/Other), and set its per-kg price, so a brand new rice or dal variety scanned or typed in at the till immediately becomes a proper weighed product and shows up under the correct category button next time, without needing admin access. Barcode is optional either way (blank if none).
 14. Offline limitation accepted for v1: if the Sydney server or internet is down, the shop reverts to pen and paper. Do not build offline sync in v1.
 15. Bilingual UI (English/Nepali): the cashier screen has a language toggle that translates interface chrome ONLY — buttons, labels, headings, prompts, statuses, and toasts, plus display-only Nepali labels for the five fixed weighed-group buttons (Rice→चामल, Dal→दाल, Sugar→चिनी, Flour→पीठो, Other→अन्य). Product names and all stored data are NEVER translated; money keeps the `Rs. 1,250.00` format in both languages (decision 8); numerals stay Western digits. The choice persists per device via localStorage (`pos_lang`). Translations live in a plain JS dictionary in `static/i18n.js` — no framework, no server round-trip, no backend involvement. The admin panel stays English-only (it's Utsav's screen).
+16. Cashier header shows the current date in the Bikram Sambat (Nepali) calendar plus the current Kathmandu time in 12-hour format, ticking live (e.g. English `Saturday, 2083 Asar 20 · 2:45 PM`; Nepali `शनिबार, २०८३ असार २० · २:४५ PM` with Devanagari digits, respecting the decision-15 toggle). Display-only and frontend-only (`static/nepali-date.js`) — no backend. BS conversion uses an embedded month-length table (authoritative medic/bikram-sambat data) anchored at BS 2081-01-01 = 2024-04-13 AD, covering BS 2078–2090 (AD ~2021–2033); the table must be extended before ~2033 or the header falls back to time-only. This is presentation only: sales still store Gregorian ISO dates at Kathmandu time (convention 3) — BS is never persisted.
 
 ## Project structure
 
@@ -61,6 +62,7 @@ Cashier screen (the only daily screen — big buttons, dead simple, touch-friend
 7. NEW SALE button — shows a confirmation prompt, then saves the transaction and clears the bill
 8. Clear Bill button — empties the current bill in one tap without saving
 9. Language toggle (English ↔ नेपाली) — chrome only, persists per device (see decision 15)
+10. Header shows today's Bikram Sambat date + live 12-hour Kathmandu time (see decision 16)
 
 Admin panel (password protected):
 Authentication is set up on first use, not via an environment variable. On the

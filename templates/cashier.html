@@ -12,7 +12,10 @@
 
   <section class="controls">
     <div class="controls-header">
-      <span class="brand">Khatiwada Store</span>
+      <div class="brand-block">
+        <span class="brand">Khatiwada Store</span>
+        <span id="header-datetime" class="header-datetime"></span>
+      </div>
       <div class="header-actions">
         <button id="lang-toggle" class="lang-toggle" type="button" data-i18n="langToggle">नेपाली</button>
         <a class="admin-link" href="{{ url_for('admin_home') }}" data-i18n="admin">⚙ Admin</a>
@@ -178,6 +181,7 @@
 <div id="toast" class="toast" hidden></div>
 
 <script src="{{ url_for('static', filename='i18n.js') }}"></script>
+<script src="{{ url_for('static', filename='nepali-date.js') }}"></script>
 <script src="{{ url_for('static', filename='html5-qrcode.min.js') }}"></script>
 <script src="{{ url_for('static', filename='scanner.js') }}"></script>
 <script src="{{ url_for('static', filename='cashier.js') }}"></script>

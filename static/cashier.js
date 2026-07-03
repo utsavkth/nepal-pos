@@ -542,7 +542,16 @@ window.addEventListener("pos:langchange", () => {
   renderBill();
   loadQuickTaps();
   updateQuickAddPickers();
+  updateHeaderClock();
 });
+
+/* ---- Cashier header: Bikram Sambat date + 12-hour Kathmandu time (decision 16) ---- */
+
+function updateHeaderClock() {
+  document.getElementById("header-datetime").textContent = formatCashierHeader(currentLang);
+}
+updateHeaderClock();
+setInterval(updateHeaderClock, 15000); // ticks the minute over without a reload
 
 /* ---- Init ---- */
 

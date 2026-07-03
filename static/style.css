@@ -63,6 +63,7 @@ html, body {
   gap: 10px;
   padding: 2px;
 }
+.brand-block { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .controls-header .brand {
   font-weight: 800;
   font-size: 1.15rem;
@@ -71,6 +72,14 @@ html, body {
 }
 .controls-header .brand::before {
   content: "🛒 ";
+}
+.header-datetime {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .header-actions { display: flex; align-items: center; gap: 8px; }
 .admin-link, .lang-toggle {
