@@ -41,10 +41,17 @@ visit to `/admin` (step 7) and can change it later from inside the panel.
 ## 3. Build and start the container
 
 ```bash
-sudo mkdir -p /data/nepal-pos          # HDD path for the SQLite databases
+# HDD path for the SQLite databases (matches the volume in docker-compose.yml)
+sudo mkdir -p /srv/dev-disk-by-uuid-d83cca89-bc12-4315-a166-686c581461cf/Docker-Data/nepal-pos
 docker compose up -d --build
 docker compose logs -f                 # watch it start, Ctrl-C to stop tailing
 ```
+
+The container publishes host port `5050` (Caddy proxies to it). Confirm that
+port and the HTTPS port `8443` used in step 6 are both free first:
+`sudo docker ps --format '{{.Names}} {{.Ports}}' | grep -E '5050|8443'` should
+print nothing. If either is taken, change it in `docker-compose.yml` (host port)
+and/or `deploy/Caddyfile.snippet`, and use the matching numbers below.
 
 Verify it's serving locally on the Pi:
 
@@ -52,10 +59,9 @@ Verify it's serving locally on the Pi:
 curl -s http://localhost:5050/ | head    # should return the cashier HTML
 ```
 
-The databases are created empty in `/data/nepal-pos/` on first run. You'll
-populate real products by scanning at the till once HTTPS is live (step 7). To
-load the sample test products instead, run:
-`docker compose exec pos python seed.py`.
+The databases are created empty on the HDD on first run. You'll populate real
+products by scanning at the till once HTTPS is live (step 7). To load the sample
+test products instead, run: `docker compose exec pos python seed.py`.
 
 ## 4. (Optional) Rename the Tailscale device
 
@@ -87,13 +93,16 @@ console and that `tailscale status` shows the Pi online.
 
 ## 6. Point Caddy at the app
 
-Your Caddy is a **host-networked container**, so it reaches the POS container
-through the host's published port `5050`, and it already has the cert directory
-mounted. Append the block from [`Caddyfile.snippet`](Caddyfile.snippet) to your
-Caddyfile (the file bind-mounted at `/etc/caddy/Caddyfile`):
+POS is served on a **dedicated HTTPS port (8443)** so it doesn't disturb the
+existing `uk-homeserver.tailea48bb.ts.net:443` site (Jellyfin) — same hostname,
+same cert, different port. Your Caddy is a host-networked container, so it binds
+host port 8443 directly, reaches the POS container through its published host
+port `5050`, and already has the cert directory mounted. Append the block from
+[`Caddyfile.snippet`](Caddyfile.snippet) to your Caddyfile (the file bind-mounted
+at `/etc/caddy/Caddyfile`) — **do not modify the existing :443 Jellyfin block**:
 
 ```
-uk-homeserver.tailea48bb.ts.net {
+uk-homeserver.tailea48bb.ts.net:8443 {
     tls /etc/caddy/certs/uk-homeserver.crt /etc/caddy/certs/uk-homeserver.key
     reverse_proxy localhost:5050
 }
@@ -110,7 +119,7 @@ sudo docker exec caddy caddy reload --config /etc/caddy/Caddyfile
 
 ## 7. Test HTTPS from the shop devices
 
-Open `https://uk-homeserver.tailea48bb.ts.net/` on:
+Open `https://uk-homeserver.tailea48bb.ts.net:8443/` (note the `:8443`) on:
 
 1. The **Chromebook** (primary) — check the padlock shows a valid cert, the
    cashier screen loads, and tapping **SCAN** prompts for camera permission and

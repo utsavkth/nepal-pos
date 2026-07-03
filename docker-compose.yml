@@ -8,8 +8,9 @@ services:
       # host 5050 -> container 5000; Caddy reverse-proxies to 5050 (phase 7)
       - "5050:5000"
     volumes:
-      # SQLite databases persist on the Pi's HDD (CLAUDE.md decision 5)
-      - /data/nepal-pos:/app/data
+      # SQLite databases persist on the Pi's HDD alongside the other container
+      # data (CLAUDE.md decision 5), not the SD card.
+      - /srv/dev-disk-by-uuid-d83cca89-bc12-4315-a166-686c581461cf/Docker-Data/nepal-pos:/app/data
     environment:
       # Session signing key, from a .env file next to this compose file (not
       # committed). Compose fails fast with this message if it's missing.

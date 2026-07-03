@@ -2,17 +2,21 @@
 # Nepal Grocery POS — append this block to the Pi's Caddyfile
 # (the file bind-mounted into the Caddy container at /etc/caddy/Caddyfile).
 #
-# HTTPS uses a real Let's Encrypt cert from `tailscale cert` (required so the
-# iPhones can use the camera — CLAUDE.md decisions 4 & 7). Caddy runs as a
-# host-networked container, so:
-#   - it reaches the POS container via the host's published port 5050, and
-#   - it reads the cert from /etc/caddy/certs, already bind-mounted into Caddy.
+# Served on a DEDICATED HTTPS PORT (8443) so it does not disturb the existing
+# uk-homeserver.tailea48bb.ts.net:443 site (Jellyfin). It reuses the same
+# Tailscale cert, so browsers still trust it and iPhone camera scanning works
+# (HTTPS is required — CLAUDE.md decisions 4 & 7). Reachable at:
+#     https://uk-homeserver.tailea48bb.ts.net:8443/
 #
-# If you rename the Pi's Tailscale device to `pos`, change the domain below to
-# pos.tailea48bb.ts.net and re-issue the cert (the .crt/.key filenames can stay).
+# Caddy runs as a host-networked container, so it binds host port 8443 directly
+# and reaches the POS container through its published host port 5050. The cert
+# is read from /etc/caddy/certs (already bind-mounted into Caddy).
+#
+# If 8443 (or 5050) is already used by another container, change the number
+# here — and give the shop devices the matching URL.
 # ============================================================================
 
-uk-homeserver.tailea48bb.ts.net {
+uk-homeserver.tailea48bb.ts.net:8443 {
     tls /etc/caddy/certs/uk-homeserver.crt /etc/caddy/certs/uk-homeserver.key
     reverse_proxy localhost:5050
 }
