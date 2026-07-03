@@ -66,49 +66,46 @@ Tailscale admin console now, before issuing the cert.
 `tailscale cert` must run on the Pi (the node that owns the name). It writes a
 real Let's Encrypt cert that iPhones trust with no browser warning.
 
+Write it into the **host** directory that is already bind-mounted into your
+Caddy container at `/etc/caddy/certs` — i.e. the source side of your
+`-v .../Docker-Data/caddy-certs:/etc/caddy/certs` mount. Replace
+`/PATH/TO/Docker-Data/caddy-certs` with that real host path:
+
 ```bash
-sudo mkdir -p /etc/caddy/certs
 sudo tailscale cert \
-  --cert-file /etc/caddy/certs/uk-homeserver.tailea48bb.ts.net.crt \
-  --key-file  /etc/caddy/certs/uk-homeserver.tailea48bb.ts.net.key \
+  --cert-file /PATH/TO/Docker-Data/caddy-certs/uk-homeserver.crt \
+  --key-file  /PATH/TO/Docker-Data/caddy-certs/uk-homeserver.key \
   uk-homeserver.tailea48bb.ts.net
 ```
+
+Caddy then reads those same two files from *inside* the container at
+`/etc/caddy/certs/uk-homeserver.crt` and `.key` (that's what the Caddyfile
+references in step 6 — a container path, not a host path).
 
 If this errors, confirm HTTPS Certificates are enabled in the Tailscale admin
 console and that `tailscale status` shows the Pi online.
 
 ## 6. Point Caddy at the app
 
-Append the block in [`Caddyfile.snippet`](Caddyfile.snippet) to your existing
-Caddyfile, then pick the correct `reverse_proxy` target:
+Your Caddy is a **host-networked container**, so it reaches the POS container
+through the host's published port `5050`, and it already has the cert directory
+mounted. Append the block from [`Caddyfile.snippet`](Caddyfile.snippet) to your
+Caddyfile (the file bind-mounted at `/etc/caddy/Caddyfile`):
 
-- **Caddy runs as a container** (same setup as your media stack): keep
-  `reverse_proxy nepal-pos:5000` and put the POS container on Caddy's Docker
-  network. Find the network with `docker inspect <caddy-container> -f
-  '{{range $k,$_ := .NetworkSettings.Networks}}{{$k}} {{end}}'`, then add this
-  to the POS `docker-compose.yml` and re-run `docker compose up -d`:
+```
+uk-homeserver.tailea48bb.ts.net {
+    tls /etc/caddy/certs/uk-homeserver.crt /etc/caddy/certs/uk-homeserver.key
+    reverse_proxy localhost:5050
+}
+```
 
-  ```yaml
-  networks:
-    default:
-      external: true
-      name: <caddy-network-name>
-  ```
+Note the `tls` paths are **container** paths (`/etc/caddy/certs/...`), which map
+to the host `caddy-certs` directory you wrote the cert into in step 5.
 
-  The cert files must also be readable **inside** the Caddy container — mount
-  `/etc/caddy/certs` into it (e.g. `-v /etc/caddy/certs:/etc/caddy/certs:ro`)
-  and use that in-container path in the `tls` directive.
-
-- **Caddy runs as a host service** (systemd): switch the snippet to
-  `reverse_proxy localhost:5050`; the host paths in the `tls` line are already
-  correct.
-
-Reload Caddy:
+Reload Caddy (the container is named `caddy`):
 
 ```bash
-sudo systemctl reload caddy            # host service
-# or, if Caddy is a container:
-# docker exec caddy caddy reload --config /etc/caddy/Caddyfile
+sudo docker exec caddy caddy reload --config /etc/caddy/Caddyfile
 ```
 
 ## 7. Test HTTPS from the shop devices
@@ -128,11 +125,14 @@ and press NEW SALE. Check the sale in `/admin` → Reports.
 
 ## 8. Schedule certificate renewal
 
-Certs expire ~90 days out. Install the renewal script and a monthly cron job:
+Certs expire ~90 days out. Edit [`renew-cert.sh`](renew-cert.sh) and set
+`CERT_DIR` to the same host `caddy-certs` path you used in step 5 (its `DOMAIN`,
+`CERT_NAME`, and the `docker exec caddy` reload are already set for this setup).
+Then install it and a monthly cron job:
 
 ```bash
 chmod +x /opt/nepal-pos/deploy/renew-cert.sh
-# edit the script first: set DOMAIN and the correct CADDY_RELOAD line
+sudo /opt/nepal-pos/deploy/renew-cert.sh       # run once to confirm it works
 sudo crontab -e
 ```
 
@@ -141,8 +141,6 @@ Add:
 ```
 15 3 1 * * /opt/nepal-pos/deploy/renew-cert.sh >> /var/log/nepal-pos-cert.log 2>&1
 ```
-
-Run it once by hand to confirm it works: `sudo /opt/nepal-pos/deploy/renew-cert.sh`.
 
 ---
 

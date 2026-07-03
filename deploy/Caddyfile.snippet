@@ -1,26 +1,18 @@
 # ============================================================================
-# Nepal Grocery POS — append this block to the Pi's existing Caddyfile.
-# HTTPS is served with a real Let's Encrypt cert issued by `tailscale cert`
-# (required so the iPhones can use the camera — see CLAUDE.md decisions 4 & 7).
+# Nepal Grocery POS — append this block to the Pi's Caddyfile
+# (the file bind-mounted into the Caddy container at /etc/caddy/Caddyfile).
 #
-# If you renamed the Pi's Tailscale device to `pos`, replace every
-# `uk-homeserver.tailea48bb.ts.net` below with `pos.tailea48bb.ts.net`.
+# HTTPS uses a real Let's Encrypt cert from `tailscale cert` (required so the
+# iPhones can use the camera — CLAUDE.md decisions 4 & 7). Caddy runs as a
+# host-networked container, so:
+#   - it reaches the POS container via the host's published port 5050, and
+#   - it reads the cert from /etc/caddy/certs, already bind-mounted into Caddy.
+#
+# If you rename the Pi's Tailscale device to `pos`, change the domain below to
+# pos.tailea48bb.ts.net and re-issue the cert (the .crt/.key filenames can stay).
 # ============================================================================
 
 uk-homeserver.tailea48bb.ts.net {
-    # Explicit cert/key produced by `tailscale cert`. Caddy's automatic HTTPS
-    # cannot issue a certificate for a private tailnet name, so we point it at
-    # the files instead. (Renewed by deploy/renew-cert.sh — see DEPLOY.md.)
-    tls /etc/caddy/certs/uk-homeserver.tailea48bb.ts.net.crt /etc/caddy/certs/uk-homeserver.tailea48bb.ts.net.key
-
-    # --- Choose ONE reverse_proxy target for how your Caddy runs ---
-    #
-    # A) Caddy runs as a Docker container (typical for the media stack):
-    #    put the POS container on the SAME Docker network as Caddy (see
-    #    DEPLOY.md step 6) and proxy to it by container name + internal port.
-    reverse_proxy nepal-pos:5000
-    #
-    # B) Caddy runs as a host service (systemd): reach the published host port
-    #    from docker-compose (5050 -> 5000). Comment out (A) and use:
-    # reverse_proxy localhost:5050
+    tls /etc/caddy/certs/uk-homeserver.crt /etc/caddy/certs/uk-homeserver.key
+    reverse_proxy localhost:5050
 }
