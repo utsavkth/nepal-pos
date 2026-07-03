@@ -1,0 +1,9 @@
+venv/
+data/
+.git/
+.gitignore
+__pycache__/
+*.pyc
+.claude/
+.env
+tests.py

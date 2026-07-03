@@ -1,0 +1,17 @@
+services:
+  pos:
+    build: .
+    image: nepal-pos
+    container_name: nepal-pos
+    restart: unless-stopped
+    ports:
+      # host 5050 -> container 5000; Caddy reverse-proxies to 5050 (phase 7)
+      - "5050:5000"
+    volumes:
+      # SQLite databases persist on the Pi's HDD (CLAUDE.md decision 5)
+      - /data/nepal-pos:/app/data
+    environment:
+      # Values come from a .env file next to this compose file (not committed).
+      # Compose fails fast with these messages if either is missing.
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:?set ADMIN_PASSWORD in .env}
+      - SECRET_KEY=${SECRET_KEY:?set SECRET_KEY in .env}
