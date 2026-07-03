@@ -17,7 +17,7 @@ Owner: Utsav (Sydney). Users: non-technical family members in the shop.
 8. Currency: Rs. (Nepali Rupee, NPR). Format all money as `Rs. 1,250.00`.
 9. Weighed items sold per kg: multiple varieties are expected (e.g. several kinds of Rice, several kinds of Dal/Lentils), not just one product per category. Quick-tap buttons are by CATEGORY (Rice, Dal, Sugar, Flour), not by a single fixed product. Tapping a category button shows a short list of that category's active products from the database (populated dynamically — grows as new varieties are added via admin or Quick Add), staff pick the specific variety, then the weight number pad opens.
 10. No receipt printer — display the total on screen only.
-11. No payment integration — customers pay cash or QR; staff confirm manually. NEW SALE saves the transaction and clears the bill.
+11. No payment integration — customers pay cash or QR; staff confirm manually. NEW SALE shows a confirmation step ("Confirm sale of Rs. X?") before it saves the transaction and clears the bill, to guard against accidental taps finalizing a wrong sale. A separate "Clear Bill" button empties the running bill in one tap without saving (individual line items can still be removed one at a time as before).
 12. Price override at sale time: each line item in the running bill can have its price edited for that sale only (e.g. discounts, damaged goods) without changing the product's stored price. No approval/permission gate in v1 — any staff member can do this.
 13. Quick Add auto-opens automatically the moment a barcode scan returns "not found" — staff should not have to notice the failure and manually open the form. Quick Add must support creating a new WEIGHED variety on the spot (not just fixed-price items) — staff need to be able to mark the new item as weighed, pick its category (Rice/Dal/Sugar/Flour/Other), and set its per-kg price, so a brand new rice or dal variety scanned or typed in at the till immediately becomes a proper weighed product and shows up under the correct category button next time, without needing admin access. Barcode is optional either way (blank if none).
 14. Offline limitation accepted for v1: if the Sydney server or internet is down, the shop reverts to pen and paper. Do not build offline sync in v1.
@@ -54,7 +54,8 @@ Cashier screen (the only daily screen — big buttons, dead simple, touch-friend
 4. LPG one-tap button
 5. Running bill with line totals in Rs.
 6. Quick Add: when a barcode is not found or an item has no barcode, add name + price on the spot — saves to database AND adds to the current bill
-7. NEW SALE button — saves transaction, clears the bill
+7. NEW SALE button — shows a confirmation prompt, then saves the transaction and clears the bill
+8. Clear Bill button — empties the current bill in one tap without saving
 
 Admin panel (password protected):
 Authentication is set up on first use, not via an environment variable. On the

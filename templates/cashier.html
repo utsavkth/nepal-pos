@@ -30,7 +30,10 @@
   </section>
 
   <section class="bill">
-    <h2 class="bill-title">Bill</h2>
+    <div class="bill-title">
+      <span>Bill</span>
+      <button id="clear-bill-btn" class="btn-clear-bill" type="button" disabled>Clear</button>
+    </div>
     <ul id="bill-lines" class="bill-lines"></ul>
     <div class="bill-footer">
       <div class="bill-total-row">
@@ -93,6 +96,18 @@
     <div class="modal-actions">
       <button id="price-cancel" class="btn btn-cancel" type="button">Cancel</button>
       <button id="price-ok" class="btn btn-ok" type="button" disabled>CHANGE</button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm sale modal (guards against accidental NEW SALE taps) -->
+<div id="confirm-modal" class="modal" hidden>
+  <div class="modal-box">
+    <h3>Confirm sale</h3>
+    <p class="confirm-text">Confirm this sale?<strong id="confirm-amount">Rs. 0.00</strong></p>
+    <div class="modal-actions">
+      <button id="confirm-cancel" class="btn btn-cancel" type="button">Cancel</button>
+      <button id="confirm-ok" class="btn btn-ok" type="button">Confirm &amp; save</button>
     </div>
   </div>
 </div>

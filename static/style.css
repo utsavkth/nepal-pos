@@ -211,7 +211,11 @@ html, body {
 }
 
 .bill-title {
-  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 18px;
   font-size: 0.85rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -220,6 +224,24 @@ html, body {
   border-bottom: 1px solid var(--border);
   background: #fbfcfe;
 }
+.btn-clear-bill {
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--red);
+  font-weight: 700;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: background .12s;
+}
+.btn-clear-bill:hover:not(:disabled) { background: var(--red-soft); }
+.btn-clear-bill:disabled { color: var(--muted); opacity: 0.45; cursor: default; }
+
+.confirm-text { font-size: 1.2rem; text-align: center; padding: 6px 0; }
+.confirm-text strong { display: block; font-size: 1.9rem; margin-top: 6px; color: var(--ink); letter-spacing: -0.02em; }
 
 .bill-lines {
   list-style: none;

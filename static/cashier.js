@@ -73,6 +73,11 @@ function renderBill() {
   const total = bill.reduce((sum, l) => sum + lineTotal(l), 0);
   document.getElementById("bill-total").textContent = formatRs(total);
   document.getElementById("new-sale-btn").disabled = bill.length === 0;
+  document.getElementById("clear-bill-btn").disabled = bill.length === 0;
+}
+
+function billTotal() {
+  return bill.reduce((sum, l) => sum + lineTotal(l), 0);
 }
 
 function addToBill(product, quantity) {
@@ -460,17 +465,43 @@ document.getElementById("scan-btn").addEventListener("click", () => {
   startScanner(handleScannedBarcode);
 });
 
-/* ---- New sale ---- */
+/* ---- Clear bill (one tap, no save) ---- */
 
-document.getElementById("new-sale-btn").addEventListener("click", async () => {
+document.getElementById("clear-bill-btn").addEventListener("click", () => {
   if (bill.length === 0) return;
+  bill.length = 0;
+  renderBill();
+  showToast("Bill cleared");
+});
+
+/* ---- New sale (confirmation guards against accidental taps) ---- */
+
+const confirmModal = document.getElementById("confirm-modal");
+
+document.getElementById("new-sale-btn").addEventListener("click", () => {
+  if (bill.length === 0) return;
+  document.getElementById("confirm-amount").textContent = formatRs(billTotal());
+  confirmModal.hidden = false;
+});
+
+document.getElementById("confirm-cancel").addEventListener("click", () => {
+  confirmModal.hidden = true;
+});
+
+document.getElementById("confirm-ok").addEventListener("click", finalizeSale);
+
+async function finalizeSale() {
+  if (bill.length === 0) {
+    confirmModal.hidden = true;
+    return;
+  }
   const items = bill.map((l) => ({
     product_name: l.product_name,
     quantity: l.quantity,
     unit_price: l.unit_price,
   }));
-  const btn = document.getElementById("new-sale-btn");
-  btn.disabled = true;
+  const okBtn = document.getElementById("confirm-ok");
+  okBtn.disabled = true;
   try {
     const res = await fetch("/api/sales", {
       method: "POST",
@@ -481,12 +512,14 @@ document.getElementById("new-sale-btn").addEventListener("click", async () => {
     const sale = await res.json();
     bill.length = 0;
     renderBill();
+    confirmModal.hidden = true;
     showToast("Sale saved — " + formatRs(sale.total), 2500);
   } catch {
-    btn.disabled = false;
     showToast("Could not save sale — try again");
+  } finally {
+    okBtn.disabled = false;
   }
-});
+}
 
 /* ---- Init ---- */
 
