@@ -45,6 +45,32 @@ html, body {
   overflow-y: auto;
 }
 
+.controls-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.controls-header .brand {
+  font-weight: 800;
+  font-size: 1.05rem;
+  color: #555;
+  letter-spacing: 0.02em;
+}
+.admin-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel);
+  color: var(--accent);
+  font-weight: 700;
+  text-decoration: none;
+}
+.admin-link:active { background: #e3f2fd; }
+
 .top-row {
   display: flex;
   gap: 10px;
