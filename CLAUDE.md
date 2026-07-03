@@ -4,6 +4,7 @@ A browser-based Point of Sale system for a family grocery store in Kathmandu, Ne
 Hosted in a Docker container on uk-homeserver (Raspberry Pi 4 8GB) in Parramatta, Sydney.
 Accessed from Nepal via Tailscale in Chrome on a Lenovo Chromebook Duet (touchscreen, rear camera).
 Owner: Utsav (Sydney). Users: non-technical family members in the shop.
+The shop-facing display name shown in the UI is "Khatiwada Store"; "Nepal Grocery POS" is the internal project/codename.
 
 ## Confirmed decisions — do NOT suggest alternatives to these
 
