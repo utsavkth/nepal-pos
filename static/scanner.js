@@ -1,7 +1,7 @@
 /* Barcode scanning: native BarcodeDetector where available (ChromeOS, Android
    Chrome), html5-qrcode fallback elsewhere (iOS Safari has no BarcodeDetector).
-   Camera access requires a secure context — pos.home must be served over HTTPS
-   for this to work on the iPhones. */
+   Camera access requires a secure context — the app must be served over HTTPS
+   at its Tailscale MagicDNS name for this to work on the iPhones. */
 "use strict";
 
 const scannerModal = document.getElementById("scanner-modal");
