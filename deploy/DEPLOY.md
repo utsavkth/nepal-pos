@@ -68,13 +68,12 @@ real Let's Encrypt cert that iPhones trust with no browser warning.
 
 Write it into the **host** directory that is already bind-mounted into your
 Caddy container at `/etc/caddy/certs` — i.e. the source side of your
-`-v .../Docker-Data/caddy-certs:/etc/caddy/certs` mount. Replace
-`/PATH/TO/Docker-Data/caddy-certs` with that real host path:
+`-v .../Docker-Data/caddy-certs:/etc/caddy/certs` mount:
 
 ```bash
 sudo tailscale cert \
-  --cert-file /PATH/TO/Docker-Data/caddy-certs/uk-homeserver.crt \
-  --key-file  /PATH/TO/Docker-Data/caddy-certs/uk-homeserver.key \
+  --cert-file /srv/dev-disk-by-uuid-d83cca89-bc12-4315-a166-686c581461cf/Docker-Data/caddy-certs/uk-homeserver.crt \
+  --key-file  /srv/dev-disk-by-uuid-d83cca89-bc12-4315-a166-686c581461cf/Docker-Data/caddy-certs/uk-homeserver.key \
   uk-homeserver.tailea48bb.ts.net
 ```
 
@@ -125,10 +124,9 @@ and press NEW SALE. Check the sale in `/admin` → Reports.
 
 ## 8. Schedule certificate renewal
 
-Certs expire ~90 days out. Edit [`renew-cert.sh`](renew-cert.sh) and set
-`CERT_DIR` to the same host `caddy-certs` path you used in step 5 (its `DOMAIN`,
-`CERT_NAME`, and the `docker exec caddy` reload are already set for this setup).
-Then install it and a monthly cron job:
+Certs expire ~90 days out. [`renew-cert.sh`](renew-cert.sh) is already filled in
+for this Pi (`DOMAIN`, `CERT_DIR`, `CERT_NAME`, and the `docker exec caddy`
+reload). Install it and a monthly cron job:
 
 ```bash
 chmod +x /opt/nepal-pos/deploy/renew-cert.sh

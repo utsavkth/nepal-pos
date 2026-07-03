@@ -13,8 +13,7 @@ DOMAIN="uk-homeserver.tailea48bb.ts.net"
 # HOST directory that is bind-mounted into the Caddy container at
 # /etc/caddy/certs (the source side of `-v .../caddy-certs:/etc/caddy/certs`).
 # tailscale cert writes here; Caddy reads the same files from /etc/caddy/certs.
-# >>> Replace this with the real absolute host path <<<
-CERT_DIR="/PATH/TO/Docker-Data/caddy-certs"
+CERT_DIR="/srv/dev-disk-by-uuid-d83cca89-bc12-4315-a166-686c581461cf/Docker-Data/caddy-certs"
 
 # Short cert/key filenames referenced by the Caddyfile tls directive:
 CERT_NAME="uk-homeserver"
