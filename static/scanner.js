@@ -113,7 +113,19 @@ function startHtml5QrScanner() {
   html5qr
     .start(
       { facingMode: preferredFacing },
-      { fps: 10, qrbox },
+      {
+        fps: 10,
+        qrbox,
+        // Request a high-res rear-camera stream. The default stream is low
+        // resolution, which is the main reason 1D barcodes fail to decode on
+        // iPhones — more pixels on the barcode makes it readable. `ideal` lets
+        // the browser negotiate down if the camera can't hit it.
+        videoConstraints: {
+          facingMode: preferredFacing,
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+        },
+      },
       (decodedText) => handleResult(decodedText),
       () => { /* per-frame decode misses are normal */ }
     )
