@@ -87,11 +87,33 @@ async function startNativeScanner() {
 function startHtml5QrScanner() {
   scannerVideo.hidden = true;
   html5qrRegion.hidden = false;
-  html5qr = new Html5Qrcode("html5qr-region");
+
+  // Tell the decoder to expect grocery 1D barcodes (EAN/UPC/Code) as well as
+  // QR — without this hint html5-qrcode is unreliable on 1D barcodes, which is
+  // exactly what the shop scans. This path runs on iOS and desktop where the
+  // native BarcodeDetector isn't available.
+  const F = window.Html5QrcodeSupportedFormats;
+  const formatsToSupport = F
+    ? [F.EAN_13, F.EAN_8, F.UPC_A, F.UPC_E, F.CODE_128, F.CODE_39, F.QR_CODE]
+    : undefined;
+
+  html5qr = new Html5Qrcode("html5qr-region", {
+    formatsToSupport,
+    experimentalFeatures: { useBarCodeDetectorIfSupported: true },
+    verbose: false,
+  });
+
+  // A wide, short scan box fits 1D barcodes far better than a small square one,
+  // and a function adapts it to whatever the actual camera resolution is.
+  const qrbox = (viewWidth, viewHeight) => ({
+    width: Math.floor(Math.min(viewWidth * 0.92, 340)),
+    height: Math.floor(Math.min(viewHeight * 0.5, 200)),
+  });
+
   html5qr
     .start(
       { facingMode: preferredFacing },
-      { fps: 10, qrbox: { width: 280, height: 160 } },
+      { fps: 10, qrbox },
       (decodedText) => handleResult(decodedText),
       () => { /* per-frame decode misses are normal */ }
     )
