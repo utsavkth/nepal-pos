@@ -146,6 +146,13 @@ function groupLabel(group) {
   return t("group" + group) || group;
 }
 
+/* Product display name: the optional per-product Nepali name when the Nepali
+   toggle is on and one is set, else the canonical English name. Display only —
+   the English name is what gets stored on the sale. */
+function productDisplayName(englishName, nepaliName) {
+  return currentLang === "ne" && nepaliName ? nepaliName : englishName;
+}
+
 /* Translate all static markup: elements with data-i18n get textContent,
    data-i18n-placeholder gets the placeholder attribute. */
 function applyStaticTranslations() {

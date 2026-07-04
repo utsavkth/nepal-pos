@@ -267,6 +267,7 @@ def _parse_product_form():
     weighed_group = request.form.get("weighed_group", "").strip() or None
     if weighed_group is not None and weighed_group not in db.WEIGHED_GROUPS:
         return None, "Choose a valid quick-tap group."
+    name_ne = request.form.get("name_ne", "").strip() or None
     return (
         {
             "name": name,
@@ -276,6 +277,7 @@ def _parse_product_form():
             "is_weighed": is_weighed,
             "unit": unit,
             "weighed_group": weighed_group,
+            "name_ne": name_ne,
         },
         None,
     )
@@ -434,7 +436,8 @@ def admin_import():
                         if not name or category not in CATEGORIES or unit not in UNITS or price <= 0:
                             errors.append(f"Line {line_no}: missing name, or invalid category/unit/price.")
                             continue
-                        outcome = db.import_product_row(barcode, name, category, price, is_weighed, unit)
+                        name_ne = (row.get("name_ne") or "").strip() or None  # optional column
+                        outcome = db.import_product_row(barcode, name, category, price, is_weighed, unit, name_ne=name_ne)
                         if outcome == "updated":
                             updated += 1
                         else:

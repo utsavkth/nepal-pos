@@ -225,6 +225,26 @@ def run():
     check("reactivated product visible again",
           any(p["name"] == "Marker Pen" for p in client.get("/api/products/search?q=marker").get_json()))
 
+    section("Admin — optional per-product Nepali name (name_ne)")
+    # add a product with a Nepali name via the admin form
+    client.post("/admin/products/new", data={
+        "name": "Basmati Rice", "name_ne": "बासमती चामल", "barcode": "",
+        "category": "weighed", "price": "250", "unit": "kg", "is_weighed": "1", "weighed_group": "Rice"})
+    br = _product_by_name("Basmati Rice")
+    check("admin form stores name_ne", br is not None and br["name_ne"] == "बासमती चामल")
+    check("name_ne comes back on the quick-taps API",
+          any(p.get("name_ne") == "बासमती चामल" for p in client.get("/api/products/quick-taps").get_json()["groups"][0]["products"]))
+    check("name_ne comes back on search", any(p.get("name_ne") == "बासमती चामल" for p in client.get("/api/products/search?q=basmati").get_json()))
+    # a product with no Nepali name stores NULL, and the canonical English name is unaffected
+    client.post("/admin/products/new", data={
+        "name": "Plain Soap", "name_ne": "", "category": "grocery", "price": "40", "unit": "piece"})
+    ps = _product_by_name("Plain Soap")
+    check("blank Nepali name stored as NULL", ps is not None and ps["name_ne"] is None)
+    # editing can add a Nepali name later
+    client.post(f"/admin/products/{ps['id']}/edit", data={
+        "name": "Plain Soap", "name_ne": "साबुन", "category": "grocery", "price": "40", "unit": "piece"})
+    check("edit adds a Nepali name", db.get_product(ps["id"])["name_ne"] == "साबुन")
+
     section("Admin — weighed group auto-detect on add")
     client.post("/admin/products/new", data={
         "name": "Salt", "barcode": "", "category": "weighed", "price": "45", "unit": "kg", "is_weighed": "1", "weighed_group": ""})

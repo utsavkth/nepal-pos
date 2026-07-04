@@ -3,20 +3,20 @@
 from db import get_store_db, init_db
 
 PRODUCTS = [
-    # (barcode, name, category, price, is_weighed, unit, weighed_group)
-    ("8901058851101", "Wai Wai Noodles", "grocery", 25.00, 0, "packet", None),
-    ("5449000000996", "Coca-Cola 500ml", "grocery", 70.00, 0, "bottle", None),
-    ("8901030675013", "Surf Excel Detergent", "grocery", 150.00, 0, "packet", None),
-    (None, "Basmati Rice", "weighed", 250.00, 1, "kg", "Rice"),
-    (None, "Mansuli Rice", "weighed", 95.00, 1, "kg", "Rice"),
-    (None, "Musuro Dal", "weighed", 190.00, 1, "kg", "Dal"),
-    (None, "Chana Dal", "weighed", 210.00, 1, "kg", "Dal"),
-    (None, "Sugar", "weighed", 110.00, 1, "kg", "Sugar"),
-    (None, "Flour", "weighed", 90.00, 1, "kg", "Flour"),
-    (None, "LPG Cylinder Refill", "lpg", 1900.00, 0, "piece", None),
-    (None, "Exercise Copy", "stationery", 40.00, 0, "piece", None),
-    ("8901030865278", "Fair Cream 50g", "cosmetics", 180.00, 0, "piece", None),
-    (None, "Matchbox", "other", 5.00, 0, "piece", None),
+    # (barcode, name, category, price, is_weighed, unit, weighed_group, name_ne)
+    ("8901058851101", "Wai Wai Noodles", "grocery", 25.00, 0, "packet", None, "वाइ वाइ चाउचाउ"),
+    ("5449000000996", "Coca-Cola 500ml", "grocery", 70.00, 0, "bottle", None, None),
+    ("8901030675013", "Surf Excel Detergent", "grocery", 150.00, 0, "packet", None, None),
+    (None, "Basmati Rice", "weighed", 250.00, 1, "kg", "Rice", "बासमती चामल"),
+    (None, "Mansuli Rice", "weighed", 95.00, 1, "kg", "Rice", "मन्सुली चामल"),
+    (None, "Musuro Dal", "weighed", 190.00, 1, "kg", "Dal", "मुसुरो दाल"),
+    (None, "Chana Dal", "weighed", 210.00, 1, "kg", "Dal", "चना दाल"),
+    (None, "Sugar", "weighed", 110.00, 1, "kg", "Sugar", "चिनी"),
+    (None, "Flour", "weighed", 90.00, 1, "kg", "Flour", "पीठो"),
+    (None, "LPG Cylinder Refill", "lpg", 1900.00, 0, "piece", None, "ग्यास सिलिन्डर"),
+    (None, "Exercise Copy", "stationery", 40.00, 0, "piece", None, None),
+    ("8901030865278", "Fair Cream 50g", "cosmetics", 180.00, 0, "piece", None, None),
+    (None, "Matchbox", "other", 5.00, 0, "piece", None, "सलाई"),
 ]
 
 
@@ -26,8 +26,8 @@ def seed():
     conn.execute("DELETE FROM products")
     conn.executemany(
         """
-        INSERT INTO products (barcode, name, category, price, is_weighed, unit, weighed_group, active)
-        VALUES (?, ?, ?, ?, ?, ?, ?, 1)
+        INSERT INTO products (barcode, name, category, price, is_weighed, unit, weighed_group, name_ne, active)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
         """,
         PRODUCTS,
     )

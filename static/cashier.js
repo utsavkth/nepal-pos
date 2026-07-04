@@ -31,7 +31,7 @@ function renderBill() {
     info.className = "bill-line-info";
     const name = document.createElement("div");
     name.className = "bill-line-name";
-    name.textContent = line.product_name;
+    name.textContent = productDisplayName(line.product_name, line.name_ne);
     const detail = document.createElement("div");
     detail.className = "bill-line-detail";
     const per = line.is_weighed ? t("perKg") : "";
@@ -96,7 +96,8 @@ function addToBill(product, quantity) {
     }
   }
   bill.push({
-    product_name: product.name,
+    product_name: product.name,     // canonical English — saved on the sale
+    name_ne: product.name_ne || null, // optional Nepali display name
     quantity: quantity,
     unit_price: product.price,
     original_price: product.price,
@@ -144,7 +145,7 @@ function renderSearchResults(products) {
   products.forEach((p) => {
     const li = document.createElement("li");
     const name = document.createElement("span");
-    name.textContent = p.name;
+    name.textContent = productDisplayName(p.name, p.name_ne);
     const price = document.createElement("span");
     price.className = "result-price";
     price.textContent = formatRs(p.price) + (p.is_weighed ? t("perKg") : "");
@@ -194,14 +195,14 @@ async function loadQuickTaps() {
       btn.type = "button";
       btn.className = "tap-lpg";
       const name = document.createElement("span");
-      name.textContent = p.name;
+      name.textContent = productDisplayName(p.name, p.name_ne);
       const price = document.createElement("span");
       price.className = "tap-price";
       price.textContent = formatRs(p.price);
       btn.append(name, price);
       btn.addEventListener("click", () => {
         addToBill(p, 1);
-        showToast(p.name + t("added"));
+        showToast(productDisplayName(p.name, p.name_ne) + t("added"));
       });
       container.appendChild(btn);
     });
@@ -229,7 +230,7 @@ function openVarietyList(group) {
     const btn = document.createElement("button");
     btn.type = "button";
     const name = document.createElement("span");
-    name.textContent = p.name;
+    name.textContent = productDisplayName(p.name, p.name_ne);
     const price = document.createElement("span");
     price.className = "result-price";
     price.textContent = formatRs(p.price) + t("perKg");
@@ -258,7 +259,7 @@ function openWeightPad(product) {
   weightProduct = product;
   weightStr = "";
   document.getElementById("weight-title").textContent =
-    product.name + " — " + formatRs(product.price) + t("perKg");
+    productDisplayName(product.name, product.name_ne) + " — " + formatRs(product.price) + t("perKg");
   updateWeightDisplay();
   weightModal.hidden = false;
 }
@@ -312,7 +313,7 @@ function openPriceOverride(index) {
   priceStr = "";
   const line = bill[index];
   const per = line.is_weighed ? t("perKg") : "";
-  document.getElementById("price-title").textContent = line.product_name;
+  document.getElementById("price-title").textContent = productDisplayName(line.product_name, line.name_ne);
   document.getElementById("price-current").textContent =
     t("currentPrice") + formatRs(line.unit_price) + per +
     (line.unit_price !== line.original_price
@@ -438,11 +439,11 @@ document.getElementById("quick-add-save").addEventListener("click", async () => 
     quickAddModal.hidden = true;
     loadQuickTaps(); // a new weighed variety should appear on its category button
     if (product.is_weighed) {
-      showToast(product.name + t("savedEnterWeight"));
+      showToast(productDisplayName(product.name, product.name_ne) + t("savedEnterWeight"));
       openWeightPad(product);
     } else {
       addToBill(product, 1);
-      showToast(product.name + t("savedAndAdded"));
+      showToast(productDisplayName(product.name, product.name_ne) + t("savedAndAdded"));
     }
   } catch {
     showToast(t("couldNotSaveItem"));
@@ -467,7 +468,7 @@ async function handleScannedBarcode(barcode) {
       openWeightPad(product);
     } else {
       addToBill(product, 1);
-      showToast(product.name + t("added"));
+      showToast(productDisplayName(product.name, product.name_ne) + t("added"));
     }
   } catch {
     showToast(t("lookupFailed"));
