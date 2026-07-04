@@ -103,22 +103,16 @@ function startHtml5QrScanner() {
     verbose: false,
   });
 
-  // A wide, short scan box fits 1D barcodes far better than a small square one,
-  // and a function adapts it to whatever the actual camera resolution is.
-  const qrbox = (viewWidth, viewHeight) => ({
-    width: Math.floor(Math.min(viewWidth * 0.92, 340)),
-    height: Math.floor(Math.min(viewHeight * 0.5, 200)),
-  });
-
   html5qr
     .start(
       { facingMode: preferredFacing },
       {
         fps: 10,
-        qrbox,
-        // Request a high-res rear-camera stream. The default stream is low
-        // resolution, which is the main reason 1D barcodes fail to decode on
-        // iPhones — more pixels on the barcode makes it readable. `ideal` lets
+        // No qrbox: scan the WHOLE camera view. A small centre box is a common
+        // reason 1D grocery barcodes don't decode on phones (the barcode falls
+        // outside it); full-frame scanning is far more forgiving.
+        // Request a high-res rear stream too — the default low-res video is the
+        // other big reason 1D barcodes fail to decode on iPhones. `ideal` lets
         // the browser negotiate down if the camera can't hit it.
         videoConstraints: {
           facingMode: preferredFacing,
