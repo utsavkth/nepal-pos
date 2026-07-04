@@ -21,6 +21,7 @@ from flask import (
 from werkzeug.security import check_password_hash, generate_password_hash
 
 import db
+import nepali_date
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY") or secrets.token_hex(32)
@@ -342,10 +343,13 @@ def admin_product_active(product_id):
 @admin_required
 def admin_reports():
     daily = db.get_daily_totals(limit=31)
+    for r in daily:
+        r["bs"] = nepali_date.bs_date_label(r["date"])  # BS date shown per day
 
     all_days = db.get_all_daily_totals()
     weeks = {}
     months = {}
+    months_bs = {}  # grouped by Bikram Sambat month (e.g. "2083 Asar")
     for row in all_days:
         d = date_cls.fromisoformat(row["date"])
         iso = d.isocalendar()
@@ -355,11 +359,18 @@ def admin_reports():
             entry = bucket.setdefault(key, {"sales_count": 0, "total": 0.0})
             entry["sales_count"] += row["sales_count"]
             entry["total"] += row["total"]
+        bs_key = nepali_date.bs_month_key(row["date"])
+        if bs_key:
+            sort_key, label = bs_key
+            entry = months_bs.setdefault(sort_key, {"sales_count": 0, "total": 0.0, "period": label})
+            entry["sales_count"] += row["sales_count"]
+            entry["total"] += row["total"]
 
     weekly = [dict(period=k, **v) for k, v in sorted(weeks.items(), reverse=True)][:12]
     monthly = [dict(period=k, **v) for k, v in sorted(months.items(), reverse=True)][:12]
+    monthly_bs = [v for _, v in sorted(months_bs.items(), reverse=True)][:12]
     return render_template(
-        "admin_reports.html", daily=daily, weekly=weekly, monthly=monthly
+        "admin_reports.html", daily=daily, weekly=weekly, monthly=monthly, monthly_bs=monthly_bs
     )
 
 

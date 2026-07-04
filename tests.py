@@ -12,7 +12,11 @@ import os
 import sys
 import tempfile
 
+from datetime import date as _date
+
 from werkzeug.security import check_password_hash
+
+import nepali_date
 
 # Windows consoles default to cp1252; keep the em-dashes/output readable.
 if hasattr(sys.stdout, "reconfigure"):
@@ -270,6 +274,18 @@ def run():
         months.setdefault(row["date"][:7], 0.0)
         months[row["date"][:7]] += row["total"]
     check("June total = 500 + 700 = 1200", round(months.get("2026-06", 0), 2) == 1200.0, str(months))
+
+    # ---------------------------------------------------------------
+    section("Admin — Bikram Sambat dates in reports (#4)")
+    check("BS converter anchor 2024-04-13 -> 2081-01-01", nepali_date.to_bs(_date(2024, 4, 13)) == (2081, 1, 1))
+    check("BS converter 2025-04-14 -> 2082-01-01", nepali_date.to_bs(_date(2025, 4, 14)) == (2082, 1, 1))
+    check("BS date label 2026-07-04 -> '2083 Asar 20'", nepali_date.bs_date_label("2026-07-04") == "2083 Asar 20")
+    check("BS month key 2026-07-04 -> '2083 Asar'", nepali_date.bs_month_key("2026-07-04") == ("2083-03", "2083 Asar"))
+    check("BS out-of-range date returns None", nepali_date.bs_date_label("1990-01-01") is None)
+    rep_bs = client.get("/admin/reports").data.decode()
+    check("daily report has a BS date column", "Date (BS)" in rep_bs)
+    check("reports have a Bikram Sambat month section", "Bikram Sambat month" in rep_bs)
+    check("reports render a converted BS date (2083 ...)", "2083 " in rep_bs)
 
     # ---------------------------------------------------------------
     section("Admin — CSV export")
