@@ -197,6 +197,7 @@ html, body {
 .quick-taps button:active { transform: translateY(1px); filter: brightness(0.92); }
 .quick-taps .tap-weighed { background: linear-gradient(160deg, #10b981, var(--green-dark)); }
 .quick-taps .tap-lpg { background: linear-gradient(160deg, #f97316, var(--amber-dark)); }
+.quick-taps .tap-pinned { background: linear-gradient(160deg, #6366f1, #4338ca); }
 .quick-taps .tap-price { font-size: 0.9rem; font-weight: 600; opacity: 0.92; }
 
 .btn-quick-add {

@@ -75,7 +75,8 @@ def api_quick_taps():
         ]
         groups.append({"label": label, "products": matches})
     lpg = [p for p in products if p["category"] == "lpg"]
-    return jsonify({"groups": groups, "lpg": lpg})
+    pinned = db.get_pinned_products()
+    return jsonify({"groups": groups, "lpg": lpg, "pinned": pinned})
 
 
 @app.route("/api/products/quick-add", methods=["POST"])
@@ -106,7 +107,10 @@ def api_quick_add():
         category = data.get("category") or "other"
         if category not in QUICK_ADD_CATEGORIES:
             category = "other"
-        product = db.add_product(name=name, price=price, barcode=barcode, category=category)
+        product = db.add_product(
+            name=name, price=price, barcode=barcode, category=category,
+            pinned=1 if data.get("pinned") else 0,
+        )
     return jsonify(product), 201
 
 
@@ -268,6 +272,7 @@ def _parse_product_form():
     if weighed_group is not None and weighed_group not in db.WEIGHED_GROUPS:
         return None, "Choose a valid quick-tap group."
     name_ne = request.form.get("name_ne", "").strip() or None
+    pinned = 1 if request.form.get("pinned") else 0
     return (
         {
             "name": name,
@@ -278,6 +283,7 @@ def _parse_product_form():
             "unit": unit,
             "weighed_group": weighed_group,
             "name_ne": name_ne,
+            "pinned": pinned,
         },
         None,
     )
@@ -437,7 +443,9 @@ def admin_import():
                             errors.append(f"Line {line_no}: missing name, or invalid category/unit/price.")
                             continue
                         name_ne = (row.get("name_ne") or "").strip() or None  # optional column
-                        outcome = db.import_product_row(barcode, name, category, price, is_weighed, unit, name_ne=name_ne)
+                        raw_pinned = (row.get("pinned") or "").strip().lower()  # optional column
+                        pinned = 1 if raw_pinned in ("1", "true", "yes") else 0
+                        outcome = db.import_product_row(barcode, name, category, price, is_weighed, unit, name_ne=name_ne, pinned=pinned)
                         if outcome == "updated":
                             updated += 1
                         else:

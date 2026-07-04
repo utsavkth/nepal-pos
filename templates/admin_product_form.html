@@ -36,6 +36,10 @@
     <input type="checkbox" name="is_weighed" value="1" {% if product and product.is_weighed %}checked{% endif %}>
     Sold by weight (kg)
   </label>
+  <label class="checkbox">
+    <input type="checkbox" name="pinned" value="1" {% if product and product.pinned %}checked{% endif %}>
+    Show as a one-tap button on the sales screen (for fixed-price items you sell often, e.g. Milk)
+  </label>
   <label>Quick-tap group (weighed items only; auto-detected from the name if left on auto)
     <select name="weighed_group">
       <option value="">auto</option>

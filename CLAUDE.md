@@ -24,6 +24,7 @@ The shop-facing display name shown in the UI is "Khatiwada Store"; "Nepal Grocer
 14. Offline limitation accepted for v1: if the Sydney server or internet is down, the shop reverts to pen and paper. Do not build offline sync in v1.
 15. Bilingual UI (English/Nepali): the cashier screen has a language toggle that translates interface chrome ONLY — buttons, labels, headings, prompts, statuses, and toasts, plus display-only Nepali labels for the five fixed weighed-group buttons (Rice→चामल, Dal→दाल, Sugar→चिनी, Flour→पीठो, Other→अन्य). Product names are not machine-translated, but each product may carry an OPTIONAL Nepali name (`name_ne` column, set by Utsav in the admin edit form); when the Nepali toggle is on and a `name_ne` is set, the cashier shows it (variety picker, search, bill, weight pad, toasts), otherwise it falls back to the canonical English `name`. This is display-only — the English `name` is what gets stored on the sale (`sale_items.product_name`), so reports and CSV are unaffected. Other stored data is never translated; money keeps the `Rs. 1,250.00` format in both languages (decision 8); numerals stay Western digits. The choice persists per device via localStorage (`pos_lang`). Translations live in a plain JS dictionary in `static/i18n.js` — no framework, no server round-trip, no backend involvement. The admin panel stays English-only (it's Utsav's screen).
 16. Cashier header shows the current date in the Bikram Sambat (Nepali) calendar plus the current Kathmandu time in 12-hour format, ticking live (e.g. English `Saturday, 2083 Asar 20 · 2:45 PM`; Nepali `शनिबार, २०८३ असार २० · २:४५ PM` with Devanagari digits, respecting the decision-15 toggle). The cashier header itself is display-only and frontend-only (`static/nepali-date.js`) — no backend. BS conversion uses an embedded month-length table (authoritative medic/bikram-sambat data) anchored at BS 2081-01-01 = 2024-04-13 AD, covering BS 2078–2090 (AD ~2021–2033); the table must be extended before ~2033 or the header falls back to time-only. This is presentation only: sales still store Gregorian ISO dates at Kathmandu time (convention 3) — BS is never persisted. The admin sales reports also present BS dates (in English script, since the admin panel stays English per decision 15) using the same conversion via a Python port, `nepali_date.py`, which must be kept in sync with the JS table.
+17. Pinned cashier buttons: any FIXED-PRICE product can be marked "pinned" (`pinned` column) to appear as its own one-tap button on the cashier screen (e.g. Milk, a popular biscuit) — one tap adds it to the bill. Set self-serve via a checkbox in both the admin edit form and Quick Add (greyed out for weighed items). Pinned buttons are visually distinct (indigo) from the weighed-category buttons (green) and LPG (orange). Weighed and LPG products are excluded from the pinned list — they already get buttons via decisions 9 and their category. This lets staff curate the cashier's quick buttons without a code change.
 
 ## Project structure
 
@@ -38,7 +39,7 @@ The shop-facing display name shown in the UI is "Khatiwada Store"; "Nepal Grocer
 ## Database schema
 
 products (store.db):
-id INTEGER PK, barcode TEXT nullable, name TEXT (canonical English, used on sales), category TEXT (grocery/weighed/lpg/stationery/cosmetics/other), price REAL, is_weighed BOOLEAN, unit TEXT (kg/piece/packet/bottle), active BOOLEAN (soft delete), weighed_group TEXT nullable (Rice/Dal/Sugar/Flour/Other), name_ne TEXT nullable (optional Nepali display name, cashier-only — see decision 15)
+id INTEGER PK, barcode TEXT nullable, name TEXT (canonical English, used on sales), category TEXT (grocery/weighed/lpg/stationery/cosmetics/other), price REAL, is_weighed BOOLEAN, unit TEXT (kg/piece/packet/bottle), active BOOLEAN (soft delete), weighed_group TEXT nullable (Rice/Dal/Sugar/Flour/Other), name_ne TEXT nullable (optional Nepali display name, cashier-only — see decision 15), pinned INTEGER default 0 (fixed-price product shown as its own one-tap cashier button — see decision 17)
 
 The `category` column is NOT constrained by a DB CHECK — the allowed list lives in app code (`CATEGORIES` in `app.py`), so new categories (cosmetics was added this way) need only a code-list change, no schema migration. Both the admin add/edit form and the Quick Add form (for fixed-price items) expose the category picker.
 
@@ -64,6 +65,7 @@ Cashier screen (the only daily screen — big buttons, dead simple, touch-friend
 8. Clear Bill button — empties the current bill in one tap without saving
 9. Language toggle (English ↔ नेपाली) — chrome only, persists per device (see decision 15)
 10. Header shows today's Bikram Sambat date + live 12-hour Kathmandu time (see decision 16)
+11. Pinned product buttons — fixed-price items marked "pinned" show as one-tap buttons (see decision 17)
 
 Admin panel (password protected):
 Authentication is set up on first use, not via an environment variable. On the

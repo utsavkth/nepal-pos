@@ -245,6 +245,32 @@ def run():
         "name": "Plain Soap", "name_ne": "साबुन", "category": "grocery", "price": "40", "unit": "piece"})
     check("edit adds a Nepali name", db.get_product(ps["id"])["name_ne"] == "साबुन")
 
+    section("Cashier — pin a product as a one-tap button (#pin)")
+    # add a pinned fixed-price product via Quick Add
+    r = client.post("/api/products/quick-add", json={"name": "Milk 500ml", "price": 55, "category": "grocery", "pinned": True})
+    check("quick-add stores pinned flag", r.status_code == 201 and r.get_json().get("pinned") == 1)
+    qt = client.get("/api/products/quick-taps").get_json()
+    check("pinned product appears in quick-taps 'pinned' list",
+          any(p["name"] == "Milk 500ml" for p in qt.get("pinned", [])))
+    # a non-pinned product does not appear as a button
+    client.post("/api/products/quick-add", json={"name": "Rare Item", "price": 15, "category": "grocery"})
+    qt = client.get("/api/products/quick-taps").get_json()
+    check("non-pinned product is not a button",
+          not any(p["name"] == "Rare Item" for p in qt.get("pinned", [])))
+    # admin can pin/unpin via the edit form
+    milk = _product_by_name("Milk 500ml")
+    client.post(f"/admin/products/{milk['id']}/edit", data={
+        "name": "Milk 500ml", "category": "grocery", "price": "55", "unit": "packet"})  # pinned checkbox unchecked
+    check("admin edit without the box unpins", db.get_product(milk["id"])["pinned"] == 0)
+    client.post(f"/admin/products/{milk['id']}/edit", data={
+        "name": "Milk 500ml", "category": "grocery", "price": "55", "unit": "packet", "pinned": "1"})
+    check("admin edit with the box pins", db.get_product(milk["id"])["pinned"] == 1)
+    # weighed and lpg products never show in the pinned list (they have their own buttons)
+    db.add_product(name="Pinned Weighed", price=100, category="weighed", is_weighed=1, unit="kg", weighed_group="Rice", pinned=1)
+    qt = client.get("/api/products/quick-taps").get_json()
+    check("pinned weighed item excluded from pinned buttons",
+          not any(p["name"] == "Pinned Weighed" for p in qt.get("pinned", [])))
+
     section("Admin — weighed group auto-detect on add")
     client.post("/admin/products/new", data={
         "name": "Salt", "barcode": "", "category": "weighed", "price": "45", "unit": "kg", "is_weighed": "1", "weighed_group": ""})

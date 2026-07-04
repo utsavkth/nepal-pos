@@ -206,6 +206,23 @@ async function loadQuickTaps() {
       });
       container.appendChild(btn);
     });
+    // Pinned products — one-tap fixed-price buttons the shop chose to show here.
+    (data.pinned || []).forEach((p) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "tap-pinned";
+      const name = document.createElement("span");
+      name.textContent = productDisplayName(p.name, p.name_ne);
+      const price = document.createElement("span");
+      price.className = "tap-price";
+      price.textContent = formatRs(p.price);
+      btn.append(name, price);
+      btn.addEventListener("click", () => {
+        addToBill(p, 1);
+        showToast(productDisplayName(p.name, p.name_ne) + t("added"));
+      });
+      container.appendChild(btn);
+    });
   } catch {
     showToast(t("couldNotLoadQuick"));
   }
@@ -382,6 +399,11 @@ function updateQuickAddPickers() {
   quickAddGroupField.classList.toggle("field-disabled", !weighed);
   quickAddCategoryField.classList.toggle("field-disabled", weighed);
   quickAddPriceLabel.textContent = weighed ? t("pricePerKg") : t("price");
+  // Pinning is for fixed-price items only (weighed items get category buttons).
+  const pinnedInput = document.getElementById("quick-add-pinned");
+  document.getElementById("quick-add-pinned-field").classList.toggle("field-disabled", weighed);
+  pinnedInput.disabled = weighed;
+  if (weighed) pinnedInput.checked = false;
 }
 
 quickAddWeighed.addEventListener("change", updateQuickAddPickers);
@@ -400,6 +422,7 @@ function openQuickAdd(barcode = null) {
   quickAddWeighed.checked = false;
   quickAddGroupSelect.value = "Rice";
   quickAddCategorySelect.value = "grocery";
+  document.getElementById("quick-add-pinned").checked = false;
   updateQuickAddPickers();
   quickAddModal.hidden = false;
   document.getElementById("quick-add-name").focus();
@@ -432,6 +455,7 @@ document.getElementById("quick-add-save").addEventListener("click", async () => 
         category: quickAddWeighed.checked
           ? null
           : document.getElementById("quick-add-category").value,
+        pinned: !quickAddWeighed.checked && document.getElementById("quick-add-pinned").checked,
       }),
     });
     if (!res.ok) throw new Error();
