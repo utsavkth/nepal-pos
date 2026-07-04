@@ -42,6 +42,15 @@ function handleResult(barcode) {
   currentOnScan(barcode);
 }
 
+/* TEMPORARY diagnostic: a small suffix showing which engine + camera resolution
+   is in use, so we can see per-device what the iPhones actually do. Remove once
+   scanning is confirmed working on the iPhones. */
+function cameraInfoSuffix(engine, video) {
+  const w = video && video.videoWidth;
+  const h = video && video.videoHeight;
+  return w && h ? ` · ${engine} ${w}×${h}` : ` · ${engine}`;
+}
+
 function startCameraStream() {
   if ("BarcodeDetector" in window) {
     startNativeScanner();
@@ -62,7 +71,7 @@ async function startNativeScanner() {
     html5qrRegion.hidden = true;
     scannerVideo.srcObject = nativeStream;
     await scannerVideo.play();
-    scannerStatus.textContent = t("pointCamera");
+    scannerStatus.textContent = t("pointCamera") + cameraInfoSuffix("native", scannerVideo);
     updateSwitchVisibility();
 
     const tick = async () => {
@@ -126,6 +135,12 @@ function startHtml5QrScanner() {
     .then(() => {
       scannerStatus.textContent = t("pointCamera");
       updateSwitchVisibility();
+      // Read the actual resolution once html5-qrcode has injected its video.
+      setTimeout(() => {
+        if (!scanning) return;
+        const v = document.querySelector("#html5qr-region video");
+        scannerStatus.textContent = t("pointCamera") + cameraInfoSuffix("scanner", v);
+      }, 900);
     })
     .catch((err) => {
       scannerStatus.textContent = cameraErrorMessage(err);
