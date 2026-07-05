@@ -224,6 +224,11 @@ def run():
     client.post(f"/admin/products/{pen['id']}/active", data={"active": "1"})
     check("reactivated product visible again",
           any(p["name"] == "Marker Pen" for p in client.get("/api/products/search?q=marker").get_json()))
+    # permanent delete (for junk/accidental entries)
+    junk = db.add_product(name="Junk Entry", price=1, category="other")
+    r = client.post(f"/admin/products/{junk['id']}/delete")
+    check("admin permanently deletes a product", r.status_code == 302 and db.get_product(junk["id"]) is None)
+    check("delete of a missing product is a clean 404", client.post(f"/admin/products/{junk['id']}/delete").status_code == 404)
 
     section("Admin — optional per-product Nepali name (name_ne)")
     # add a product with a Nepali name via the admin form

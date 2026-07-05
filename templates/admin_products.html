@@ -44,6 +44,10 @@
             {{ "Deactivate" if p.active else "Reactivate" }}
           </button>
         </form>
+        <form method="post" action="{{ url_for('admin_product_delete', product_id=p.id, q=query, category=category) }}"
+              onsubmit="return confirm('Permanently delete this product? This cannot be undone. (Past sales are not affected.)');">
+          <button type="submit" class="small danger">Delete</button>
+        </form>
       </td>
     </tr>
     {% else %}

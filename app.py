@@ -347,6 +347,17 @@ def admin_product_active(product_id):
     return redirect(url_for("admin_products", q=request.args.get("q", ""), category=request.args.get("category", "")))
 
 
+@app.route("/admin/products/<int:product_id>/delete", methods=["POST"])
+@admin_required
+def admin_product_delete(product_id):
+    product = db.get_product(product_id)
+    if not product:
+        return "Product not found.", 404
+    db.delete_product(product_id)
+    flash(f"Permanently deleted {product['name']}.")
+    return redirect(url_for("admin_products", q=request.args.get("q", ""), category=request.args.get("category", "")))
+
+
 @app.route("/admin/reports")
 @admin_required
 def admin_reports():

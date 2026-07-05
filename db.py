@@ -334,6 +334,16 @@ def set_product_active(product_id, active):
     conn.close()
 
 
+def delete_product(product_id):
+    """Permanently remove a product (for junk/accidental entries). Safe because
+    sales store a product_name snapshot, not a foreign key — past sales are
+    unaffected. For discontinued-but-real products, prefer set_product_active."""
+    conn = get_store_db()
+    conn.execute("DELETE FROM products WHERE id = ?", (product_id,))
+    conn.commit()
+    conn.close()
+
+
 def import_product_row(barcode, name, category, price, is_weighed, unit, weighed_group=None, name_ne=None, pinned=0):
     """Import one product row. A barcode matching an existing product updates it
     (and reactivates it); otherwise a new product is inserted.
