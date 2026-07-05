@@ -136,9 +136,23 @@ function renderSearchResults(products) {
   searchResults.innerHTML = "";
   searchResults.hidden = false;
   if (products.length === 0) {
+    // Not found — offer to add it. If the typed text looks like a barcode
+    // (8+ digits, e.g. a number typed in because the camera wouldn't scan),
+    // open Quick Add with that barcode attached so the product still gets it.
+    const q = searchInput.value.trim();
     const li = document.createElement("li");
-    li.className = "no-results";
+    li.className = "no-results add-not-found";
     li.textContent = t("noResults");
+    li.addEventListener("click", () => {
+      searchInput.value = "";
+      searchResults.hidden = true;
+      searchResults.innerHTML = "";
+      if (/^\d{8,}$/.test(q)) {
+        openQuickAdd(q); // treat as a barcode
+      } else {
+        openQuickAdd(null, q); // treat as a product name
+      }
+    });
     searchResults.appendChild(li);
     return;
   }
@@ -408,7 +422,7 @@ function updateQuickAddPickers() {
 
 quickAddWeighed.addEventListener("change", updateQuickAddPickers);
 
-function openQuickAdd(barcode = null) {
+function openQuickAdd(barcode = null, prefillName = "") {
   quickAddBarcode = barcode;
   const note = document.getElementById("quick-add-barcode-note");
   if (barcode) {
@@ -417,7 +431,7 @@ function openQuickAdd(barcode = null) {
   } else {
     note.hidden = true;
   }
-  document.getElementById("quick-add-name").value = "";
+  document.getElementById("quick-add-name").value = prefillName;
   document.getElementById("quick-add-price").value = "";
   quickAddWeighed.checked = false;
   quickAddGroupSelect.value = "Rice";
