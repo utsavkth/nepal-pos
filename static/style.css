@@ -494,6 +494,24 @@ html, body {
 .scanner-switch:active { background: rgba(15, 23, 42, 0.85); }
 
 .scanner-status { text-align: center; color: var(--muted); font-size: 0.95rem; }
+.scanner-manual { display: flex; flex-direction: column; gap: 8px; }
+.scanner-manual-label { font-size: 0.9rem; color: var(--muted); font-weight: 600; }
+.scanner-manual-row { display: flex; gap: 10px; }
+.scanner-manual-row input {
+  flex: 1;
+  min-width: 0;
+  min-height: var(--touch);
+  font-size: 1.15rem;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.scanner-manual-row input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(37,99,235,.22);
+}
+.scanner-manual-row .btn { flex-shrink: 0; }
 
 /* Toast */
 .toast {

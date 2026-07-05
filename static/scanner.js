@@ -11,6 +11,7 @@ const scannerVideo = document.getElementById("scanner-video");
 const scannerStatus = document.getElementById("scanner-status");
 const html5qrRegion = document.getElementById("html5qr-region");
 const scannerSwitch = document.getElementById("scanner-switch");
+const scannerManualInput = document.getElementById("scanner-manual-input");
 
 const BARCODE_FORMATS = ["ean_13", "ean_8", "upc_a", "upc_e", "code_128", "code_39"];
 
@@ -26,6 +27,7 @@ function startScanner(onScan) {
   scannerModal.hidden = false;
   scannerStatus.textContent = t("startingCamera");
   scannerSwitch.hidden = true; // shown only once we confirm 2+ cameras exist
+  scannerManualInput.value = "";
   scanning = true;
 
   if (!window.isSecureContext) {
@@ -184,7 +186,13 @@ function stopCameraTracks() {
   if (html5qr) {
     const instance = html5qr;
     html5qr = null;
-    return instance.stop().then(() => instance.clear()).catch(() => {});
+    // stop() throws synchronously if the scanner never actually started (e.g.
+    // the camera failed to open) — guard so manual entry and Close still work.
+    try {
+      return instance.stop().then(() => instance.clear()).catch(() => {});
+    } catch {
+      return Promise.resolve();
+    }
   }
   return Promise.resolve();
 }
@@ -204,3 +212,21 @@ async function switchCamera() {
 
 document.getElementById("scanner-cancel").addEventListener("click", stopScanner);
 scannerSwitch.addEventListener("click", switchCamera);
+
+/* Manual barcode entry: when the camera won't scan, staff can type the number.
+   It goes through the exact same pipeline as a real scan (handleResult ->
+   the onScan callback), so a match is added to the bill and a miss opens
+   Quick Add with the barcode attached. Works even if the camera never started. */
+function submitManualBarcode() {
+  const code = scannerManualInput.value.trim();
+  if (!code || !scanning) return;
+  scannerManualInput.value = "";
+  handleResult(code);
+}
+document.getElementById("scanner-manual-add").addEventListener("click", submitManualBarcode);
+scannerManualInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    submitManualBarcode();
+  }
+});
