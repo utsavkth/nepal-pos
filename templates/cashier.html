@@ -164,6 +164,19 @@
   </div>
 </div>
 
+<!-- Duplicate warning (Quick Add) -->
+<div id="duplicate-modal" class="modal" hidden>
+  <div class="modal-box">
+    <h3 class="dup-title">⚠️ <span data-i18n="dupTitle">Possible duplicate</span></h3>
+    <p class="dup-existing" id="dup-existing"></p>
+    <p data-i18n="dupBody">This product looks like it's already in the system. Add it anyway?</p>
+    <div class="modal-actions">
+      <button id="dup-cancel" class="btn btn-cancel" type="button" data-i18n="cancel">Cancel</button>
+      <button id="dup-add-anyway" class="btn btn-danger-solid" type="button" data-i18n="dupAddAnyway">Add anyway</button>
+    </div>
+  </div>
+</div>
+
 <!-- Scanner modal -->
 <div id="scanner-modal" class="modal" hidden>
   <div class="modal-box modal-box-scanner">

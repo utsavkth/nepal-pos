@@ -3,8 +3,12 @@
 {% block content %}
 <h1>{{ "Add product" if mode == "new" else "Edit product" }}</h1>
 {% if error %}<p class="error">{{ error }}</p>{% endif %}
+{% if duplicate %}
+<p class="error">⚠️ <strong>Possible duplicate.</strong> "{{ duplicate.name }}" ({{ duplicate.price | rs }}{% if duplicate.barcode %} · barcode {{ duplicate.barcode }}{% endif %}) is already in the system. Check it's not the same item — or press <strong>Add anyway</strong> below to create it regardless.</p>
+{% endif %}
 
 <form method="post" class="product-form">
+  {% if duplicate %}<input type="hidden" name="confirm_duplicate" value="1">{% endif %}
   <label>Name
     <input name="name" required value="{{ product.name if product else '' }}">
   </label>
@@ -49,7 +53,7 @@
     </select>
   </label>
   <div class="form-actions">
-    <button type="submit">{{ "Add product" if mode == "new" else "Save changes" }}</button>
+    <button type="submit">{{ "Add anyway" if duplicate else ("Add product" if mode == "new" else "Save changes") }}</button>
     <a class="button secondary" href="{{ url_for('admin_products') }}">Cancel</a>
   </div>
 </form>

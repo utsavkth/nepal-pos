@@ -447,7 +447,9 @@ document.getElementById("quick-add-cancel").addEventListener("click", () => {
   quickAddModal.hidden = true;
 });
 
-document.getElementById("quick-add-save").addEventListener("click", async () => {
+const duplicateModal = document.getElementById("duplicate-modal");
+
+async function saveQuickAddProduct(force) {
   const name = document.getElementById("quick-add-name").value.trim();
   const price = parseFloat(document.getElementById("quick-add-price").value);
   if (!name || !(price > 0)) {
@@ -470,10 +472,17 @@ document.getElementById("quick-add-save").addEventListener("click", async () => 
           ? null
           : document.getElementById("quick-add-category").value,
         pinned: !quickAddWeighed.checked && document.getElementById("quick-add-pinned").checked,
+        force: !!force,
       }),
     });
+    if (res.status === 409) {
+      const data = await res.json();
+      showDuplicateWarning(data.existing);
+      return;
+    }
     if (!res.ok) throw new Error();
     const product = await res.json();
+    duplicateModal.hidden = true;
     quickAddModal.hidden = true;
     loadQuickTaps(); // a new weighed variety should appear on its category button
     if (product.is_weighed) {
@@ -486,6 +495,20 @@ document.getElementById("quick-add-save").addEventListener("click", async () => 
   } catch {
     showToast(t("couldNotSaveItem"));
   }
+}
+
+function showDuplicateWarning(existing) {
+  document.getElementById("dup-existing").textContent =
+    `${existing.name} — ${formatRs(existing.price)}` +
+    (existing.barcode ? ` · ${existing.barcode}` : "") + ` (${t("dupAlreadyExists")})`;
+  duplicateModal.hidden = false;
+}
+
+document.getElementById("quick-add-save").addEventListener("click", () => saveQuickAddProduct(false));
+document.getElementById("dup-cancel").addEventListener("click", () => { duplicateModal.hidden = true; });
+document.getElementById("dup-add-anyway").addEventListener("click", () => {
+  duplicateModal.hidden = true;
+  saveQuickAddProduct(true);
 });
 
 /* ---- Scanner ---- */

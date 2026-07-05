@@ -90,6 +90,15 @@ def api_quick_add():
     if not name or price <= 0:
         return jsonify({"error": "name_and_positive_price_required"}), 400
     barcode = (data.get("barcode") or "").strip() or None
+    # Guard against accidental duplicates (same barcode or same name) unless the
+    # user has seen the warning and chosen to add it anyway.
+    if not data.get("force"):
+        dup = db.find_duplicate_product(name, barcode)
+        if dup:
+            return jsonify({
+                "error": "duplicate",
+                "existing": {"name": dup["name"], "price": dup["price"], "barcode": dup["barcode"]},
+            }), 409
     if data.get("is_weighed"):
         weighed_group = data.get("weighed_group")
         if weighed_group not in db.WEIGHED_GROUPS:
@@ -293,16 +302,22 @@ def _parse_product_form():
 @admin_required
 def admin_product_new():
     error = None
+    duplicate = None
     if request.method == "POST":
         fields, error = _parse_product_form()
         if not error:
-            db.add_product(**fields)
-            flash(f"Added {fields['name']}.")
-            return redirect(url_for("admin_products"))
+            # Warn on a likely duplicate unless "add anyway" was ticked.
+            if not request.form.get("confirm_duplicate"):
+                duplicate = db.find_duplicate_product(fields["name"], fields["barcode"])
+            if not duplicate:
+                db.add_product(**fields)
+                flash(f"Added {fields['name']}.")
+                return redirect(url_for("admin_products"))
     return render_template(
         "admin_product_form.html",
         product=request.form if request.method == "POST" else None,
         error=error,
+        duplicate=duplicate,
         categories=CATEGORIES,
         units=UNITS,
         weighed_groups=db.WEIGHED_GROUPS,

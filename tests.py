@@ -230,11 +230,33 @@ def run():
     check("admin permanently deletes a product", r.status_code == 302 and db.get_product(junk["id"]) is None)
     check("delete of a missing product is a clean 404", client.post(f"/admin/products/{junk['id']}/delete").status_code == 404)
 
+    section("Cashier + Admin — duplicate guard")
+    client.post("/api/products/quick-add", json={"name": "Dup Candy", "price": 5, "barcode": "5550001112223"})
+    # same name -> 409 duplicate
+    r = client.post("/api/products/quick-add", json={"name": "Dup Candy", "price": 9})
+    check("quick-add same-name is flagged as duplicate (409)", r.status_code == 409 and r.get_json()["error"] == "duplicate")
+    check("duplicate response carries the existing product", r.get_json()["existing"]["name"] == "Dup Candy")
+    # same barcode, different name -> still a duplicate
+    r = client.post("/api/products/quick-add", json={"name": "Totally Different", "price": 9, "barcode": "5550001112223"})
+    check("quick-add same-barcode is flagged as duplicate (409)", r.status_code == 409)
+    # force=true creates it anyway
+    r = client.post("/api/products/quick-add", json={"name": "Dup Candy", "price": 9, "force": True})
+    check("quick-add force overrides the duplicate guard", r.status_code == 201)
+    # admin add: duplicate re-renders with a warning instead of creating
+    before = len(db.get_products(query="Marker Pen"))
+    r = client.post("/admin/products/new", data={"name": "Marker Pen", "category": "stationery", "price": "30", "unit": "piece"})
+    check("admin add of a dup name shows the warning (no redirect)", r.status_code == 200 and b"Possible duplicate" in r.data)
+    check("admin dup warning did not create a new row", len(db.get_products(query="Marker Pen")) == before)
+    # admin 'add anyway' (confirm_duplicate) creates it
+    client.post("/admin/products/new", data={"name": "Marker Pen", "category": "stationery", "price": "30", "unit": "piece", "confirm_duplicate": "1"})
+    check("admin 'add anyway' creates despite the duplicate", len(db.get_products(query="Marker Pen")) == before + 1)
+
     section("Admin — optional per-product Nepali name (name_ne)")
     # add a product with a Nepali name via the admin form
     client.post("/admin/products/new", data={
         "name": "Basmati Rice", "name_ne": "बासमती चामल", "barcode": "",
-        "category": "weighed", "price": "250", "unit": "kg", "is_weighed": "1", "weighed_group": "Rice"})
+        "category": "weighed", "price": "250", "unit": "kg", "is_weighed": "1", "weighed_group": "Rice",
+        "confirm_duplicate": "1"})  # seed already has one; re-adding on purpose to test name_ne
     br = _product_by_name("Basmati Rice")
     check("admin form stores name_ne", br is not None and br["name_ne"] == "बासमती चामल")
     check("name_ne comes back on the quick-taps API",

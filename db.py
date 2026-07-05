@@ -241,6 +241,27 @@ def get_product_by_barcode(barcode):
     return dict(row) if row else None
 
 
+def find_duplicate_product(name, barcode=None, exclude_id=None):
+    """Return an existing product that looks like a duplicate of the one being
+    added — matched by barcode (if given) or by name (case-insensitive), across
+    active AND inactive rows. Used to warn before creating an accidental copy.
+    exclude_id skips a given product (so editing itself isn't a 'duplicate')."""
+    conn = get_store_db()
+    row = None
+    if barcode:
+        row = conn.execute(
+            "SELECT * FROM products WHERE barcode = ? AND id IS NOT ?",
+            (barcode, exclude_id),
+        ).fetchone()
+    if row is None and name:
+        row = conn.execute(
+            "SELECT * FROM products WHERE name = ? COLLATE NOCASE AND id IS NOT ?",
+            (name, exclude_id),
+        ).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
 def get_quick_tap_products():
     """Return active weighed products and LPG products for the quick-tap buttons."""
     conn = get_store_db()

@@ -349,6 +349,19 @@ html, body {
 .modal-actions { display: flex; gap: 10px; }
 .modal-actions .btn { flex: 1; }
 .btn-cancel { background: #64748b; }
+.btn-danger-solid { background: var(--red); }
+
+/* Duplicate warning — deliberately loud so staff notice before adding a copy */
+.dup-title { color: var(--amber); font-size: 1.5rem; }
+.dup-existing {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--ink);
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: var(--radius);
+  padding: 12px 14px;
+}
 .btn-ok { background: linear-gradient(180deg, #10b981, var(--green-dark)); }
 
 /* Weight pad */
