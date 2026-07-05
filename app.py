@@ -249,12 +249,14 @@ def admin_products():
     if category not in CATEGORIES:
         category = ""
     products = db.get_products(query or None, category or None)
+    dup_extra_count = sum(len(g["remove"]) for g in db.find_duplicate_groups())
     return render_template(
         "admin_products.html",
         products=products,
         query=query,
         category=category,
         categories=CATEGORIES,
+        dup_extra_count=dup_extra_count,
     )
 
 
@@ -371,6 +373,22 @@ def admin_product_delete(product_id):
     db.delete_product(product_id)
     flash(f"Permanently deleted {product['name']}.")
     return redirect(url_for("admin_products", q=request.args.get("q", ""), category=request.args.get("category", "")))
+
+
+@app.route("/admin/duplicates")
+@admin_required
+def admin_duplicates():
+    groups = db.find_duplicate_groups()
+    extra_count = sum(len(g["remove"]) for g in groups)
+    return render_template("admin_duplicates.html", groups=groups, extra_count=extra_count)
+
+
+@app.route("/admin/duplicates/cleanup", methods=["POST"])
+@admin_required
+def admin_duplicates_cleanup():
+    removed = db.remove_duplicate_products()
+    flash(f"Removed {removed} duplicate {'copy' if removed == 1 else 'copies'} (kept one of each).")
+    return redirect(url_for("admin_products"))
 
 
 @app.route("/admin/reports")

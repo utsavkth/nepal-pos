@@ -6,6 +6,11 @@
   <a class="button" href="{{ url_for('admin_product_new') }}">+ Add product</a>
 </div>
 
+{% if dup_extra_count %}
+<p class="error">⚠️ {{ dup_extra_count }} duplicate product cop{{ 'y' if dup_extra_count == 1 else 'ies' }} found.
+  <a href="{{ url_for('admin_duplicates') }}"><strong>Review &amp; clean up →</strong></a></p>
+{% endif %}
+
 <form method="get" class="filter-bar">
   <input type="search" name="q" value="{{ query }}" placeholder="Search by name…">
   <select name="category">

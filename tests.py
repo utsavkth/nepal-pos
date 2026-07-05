@@ -230,6 +230,26 @@ def run():
     check("admin permanently deletes a product", r.status_code == 302 and db.get_product(junk["id"]) is None)
     check("delete of a missing product is a clean 404", client.post(f"/admin/products/{junk['id']}/delete").status_code == 404)
 
+    section("Admin — clean up existing duplicates")
+    # create 3 copies sharing a barcode + 2 copies sharing a name (no barcode)
+    for _ in range(3):
+        db.add_product(name="Hit 400ml", price=305, barcode="8901157025200", category="grocery")
+    for _ in range(2):
+        db.add_product(name="Loose Item", price=10, category="grocery")  # no barcode -> name match
+    groups = db.find_duplicate_groups()
+    hit = next((g for g in groups if g["keep"]["barcode"] == "8901157025200"), None)
+    check("finds the barcode duplicate group (keep 1, remove 2)", hit and len(hit["remove"]) == 2)
+    check("keeper is the oldest (lowest id)", hit and all(hit["keep"]["id"] < p["id"] for p in hit["remove"]))
+    loose = next((g for g in groups if g["keep"]["name"] == "Loose Item"), None)
+    check("finds the no-barcode name duplicate group", loose and len(loose["remove"]) == 1)
+    # the review page renders and the cleanup removes the extras (keeps one each)
+    check("duplicates page renders", b"Duplicate products" in client.get("/admin/duplicates").data)
+    r = client.post("/admin/duplicates/cleanup", follow_redirects=False)
+    check("cleanup redirects", r.status_code == 302)
+    check("only one Hit 400ml remains", len(db.get_products(query="Hit 400ml")) == 1)
+    check("only one Loose Item remains", len(db.get_products(query="Loose Item")) == 1)
+    check("no duplicate groups left", db.find_duplicate_groups() == [])
+
     section("Cashier + Admin — duplicate guard")
     client.post("/api/products/quick-add", json={"name": "Dup Candy", "price": 5, "barcode": "5550001112223"})
     # same name -> 409 duplicate

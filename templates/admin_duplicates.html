@@ -1,0 +1,42 @@
+{% extends "admin_base.html" %}
+{% block title %}Duplicates{% endblock %}
+{% block content %}
+<h1>Duplicate products</h1>
+<p class="hint">
+  Products that share the same barcode, or the same name (for items with no barcode),
+  are shown grouped below. Cleaning up keeps <strong>one</strong> of each (the oldest)
+  and permanently removes the extra copies. Past sales and reports are not affected.
+</p>
+
+{% if groups %}
+<form method="post" action="{{ url_for('admin_duplicates_cleanup') }}"
+      onsubmit="return confirm('Remove {{ extra_count }} duplicate copy/copies, keeping one of each? This cannot be undone. (Past sales are not affected.)');">
+  <button type="submit" class="danger">Remove {{ extra_count }} duplicate cop{{ 'y' if extra_count == 1 else 'ies' }} (keep one of each)</button>
+</form>
+
+{% for g in groups %}
+<h2>{{ g.keep.name }}{% if g.keep.barcode %} · {{ g.keep.barcode }}{% endif %}</h2>
+<table>
+  <thead>
+    <tr><th>ID</th><th>Name</th><th>Barcode</th><th class="num">Price</th><th>Status</th><th></th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>{{ g.keep.id }}</td><td>{{ g.keep.name }}</td><td>{{ g.keep.barcode or "—" }}</td>
+      <td class="num">{{ g.keep.price | rs }}</td><td>{{ "active" if g.keep.active else "inactive" }}</td>
+      <td><strong>Keep</strong></td>
+    </tr>
+    {% for p in g.remove %}
+    <tr class="inactive">
+      <td>{{ p.id }}</td><td>{{ p.name }}</td><td>{{ p.barcode or "—" }}</td>
+      <td class="num">{{ p.price | rs }}</td><td>{{ "active" if p.active else "inactive" }}</td>
+      <td>Remove</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endfor %}
+{% else %}
+<p class="flash">No duplicates found — your product list is clean. 🎉</p>
+{% endif %}
+{% endblock %}

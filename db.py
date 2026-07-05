@@ -365,6 +365,41 @@ def delete_product(product_id):
     conn.close()
 
 
+def find_duplicate_groups():
+    """Group products that are duplicates of each other — same barcode, or (for
+    products with no barcode) same name (case-insensitive). Returns a list of
+    groups, each {'keep': <oldest product>, 'remove': [<extra products>]}, only
+    for groups with more than one member. Keeps the lowest-id (original) row."""
+    conn = get_store_db()
+    rows = [dict(r) for r in conn.execute("SELECT * FROM products ORDER BY id").fetchall()]
+    conn.close()
+    buckets = {}
+    for p in rows:
+        key = ("bc", p["barcode"]) if p["barcode"] else ("nm", (p["name"] or "").strip().lower())
+        buckets.setdefault(key, []).append(p)
+    groups = []
+    for members in buckets.values():
+        if len(members) > 1:
+            members.sort(key=lambda x: x["id"])
+            groups.append({"keep": members[0], "remove": members[1:]})
+    return groups
+
+
+def remove_duplicate_products():
+    """Delete the extra copies in every duplicate group, keeping one of each.
+    Returns the number of products removed."""
+    groups = find_duplicate_groups()
+    removed = 0
+    conn = get_store_db()
+    for g in groups:
+        for p in g["remove"]:
+            conn.execute("DELETE FROM products WHERE id = ?", (p["id"],))
+            removed += 1
+    conn.commit()
+    conn.close()
+    return removed
+
+
 def import_product_row(barcode, name, category, price, is_weighed, unit, weighed_group=None, name_ne=None, pinned=0):
     """Import one product row. A barcode matching an existing product updates it
     (and reactivates it); otherwise a new product is inserted.
