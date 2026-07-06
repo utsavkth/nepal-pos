@@ -194,16 +194,12 @@ function renderSearchResults(products) {
 
 /* ---- Quick-tap buttons: weighed-goods category buttons + LPG one-tap ---- */
 
-/* Decorative icons for the weighed-category tiles (display only). */
-const GROUP_ICONS = { Rice: "🍚", Dal: "🫘", Sugar: "🍬", Flour: "🌾", Other: "🧺" };
-function groupIcon(label) {
-  return GROUP_ICONS[label] || "🧺";
-}
-
-/* The "media" square on a one-tap product tile: the product photo when it has
-   one, otherwise a fallback emoji (LPG) or the first letter of the name so
-   every tile looks consistent whether or not a photo has been added. */
-function tapMedia(product, fallback) {
+/* The "media" square on a tile: the product photo when it has one, otherwise a
+   white letter badge (first letter, dark-on-white) so every tile looks
+   consistent whether or not a photo has been added. Emoji were dropped — they
+   render inconsistently across the shop's devices (Chromebook + older iPhones,
+   where several didn't show at all). */
+function tapMedia(product) {
   const media = document.createElement("span");
   media.className = "tap-media";
   if (product && product.image_path) {
@@ -215,13 +211,14 @@ function tapMedia(product, fallback) {
     media.appendChild(img);
   } else {
     const name = product && product.name ? product.name.trim() : "";
-    media.textContent = fallback || (name ? name.charAt(0).toUpperCase() : "•");
+    media.classList.add("letter");
+    media.textContent = name ? name.charAt(0).toUpperCase() : "•";
   }
   return media;
 }
 
 /* Build a one-tap product tile (LPG or pinned) that adds the item on tap. */
-function productTapTile(p, colorClass, fallbackIcon) {
+function productTapTile(p, colorClass) {
   const btn = document.createElement("button");
   btn.type = "button";
   btn.className = "tap " + colorClass;
@@ -231,7 +228,7 @@ function productTapTile(p, colorClass, fallbackIcon) {
   const price = document.createElement("span");
   price.className = "tap-sub";
   price.textContent = formatRs(p.price);
-  btn.append(tapMedia(p, fallbackIcon), name, price);
+  btn.append(tapMedia(p), name, price);
   btn.addEventListener("click", () => {
     addToBill(p, 1);
     showToast(productDisplayName(p.name, p.name_ne) + t("added"));
@@ -252,8 +249,8 @@ async function loadQuickTaps() {
       btn.type = "button";
       btn.className = "tap tap-weighed";
       const media = document.createElement("span");
-      media.className = "tap-media";
-      media.textContent = groupIcon(group.label);
+      media.className = "tap-media letter";
+      media.textContent = group.label.charAt(0);  // R / D / S / F / O — always renders
       const name = document.createElement("span");
       name.className = "tap-name";
       name.textContent = groupLabel(group.label);
@@ -268,7 +265,7 @@ async function loadQuickTaps() {
       container.appendChild(btn);
     });
     data.lpg.forEach((p) => {
-      container.appendChild(productTapTile(p, "tap-lpg", "🔥"));
+      container.appendChild(productTapTile(p, "tap-lpg"));
     });
     // Pinned products — one-tap fixed-price buttons the shop chose to show here.
     (data.pinned || []).forEach((p) => {
