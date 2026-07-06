@@ -194,6 +194,51 @@ function renderSearchResults(products) {
 
 /* ---- Quick-tap buttons: weighed-goods category buttons + LPG one-tap ---- */
 
+/* Decorative icons for the weighed-category tiles (display only). */
+const GROUP_ICONS = { Rice: "🍚", Dal: "🫘", Sugar: "🍬", Flour: "🌾", Other: "🧺" };
+function groupIcon(label) {
+  return GROUP_ICONS[label] || "🧺";
+}
+
+/* The "media" square on a one-tap product tile: the product photo when it has
+   one, otherwise a fallback emoji (LPG) or the first letter of the name so
+   every tile looks consistent whether or not a photo has been added. */
+function tapMedia(product, fallback) {
+  const media = document.createElement("span");
+  media.className = "tap-media";
+  if (product && product.image_path) {
+    const img = document.createElement("img");
+    img.className = "tap-media-img";
+    img.src = "/media/" + encodeURIComponent(product.image_path);
+    img.alt = "";
+    img.loading = "lazy";
+    media.appendChild(img);
+  } else {
+    const name = product && product.name ? product.name.trim() : "";
+    media.textContent = fallback || (name ? name.charAt(0).toUpperCase() : "•");
+  }
+  return media;
+}
+
+/* Build a one-tap product tile (LPG or pinned) that adds the item on tap. */
+function productTapTile(p, colorClass, fallbackIcon) {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "tap " + colorClass;
+  const name = document.createElement("span");
+  name.className = "tap-name";
+  name.textContent = productDisplayName(p.name, p.name_ne);
+  const price = document.createElement("span");
+  price.className = "tap-sub";
+  price.textContent = formatRs(p.price);
+  btn.append(tapMedia(p, fallbackIcon), name, price);
+  btn.addEventListener("click", () => {
+    addToBill(p, 1);
+    showToast(productDisplayName(p.name, p.name_ne) + t("added"));
+  });
+  return btn;
+}
+
 async function loadQuickTaps() {
   try {
     const res = await fetch("/api/products/quick-taps");
@@ -205,55 +250,29 @@ async function loadQuickTaps() {
       if (group.label === "Other" && group.products.length === 0) return;
       const btn = document.createElement("button");
       btn.type = "button";
-      btn.className = "tap-weighed";
+      btn.className = "tap tap-weighed";
+      const media = document.createElement("span");
+      media.className = "tap-media";
+      media.textContent = groupIcon(group.label);
       const name = document.createElement("span");
+      name.className = "tap-name";
       name.textContent = groupLabel(group.label);
       const sub = document.createElement("span");
-      sub.className = "tap-price";
+      sub.className = "tap-sub";
       sub.textContent =
         group.products.length === 1
           ? t("oneVariety")
           : group.products.length + " " + t("varieties");
-      btn.append(name, sub);
+      btn.append(media, name, sub);
       btn.addEventListener("click", () => openVarietyList(group));
       container.appendChild(btn);
     });
     data.lpg.forEach((p) => {
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "tap-lpg";
-      const thumb = productThumb(p, "tap-thumb");
-      if (thumb) btn.appendChild(thumb);
-      const name = document.createElement("span");
-      name.textContent = productDisplayName(p.name, p.name_ne);
-      const price = document.createElement("span");
-      price.className = "tap-price";
-      price.textContent = formatRs(p.price);
-      btn.append(name, price);
-      btn.addEventListener("click", () => {
-        addToBill(p, 1);
-        showToast(productDisplayName(p.name, p.name_ne) + t("added"));
-      });
-      container.appendChild(btn);
+      container.appendChild(productTapTile(p, "tap-lpg", "🔥"));
     });
     // Pinned products — one-tap fixed-price buttons the shop chose to show here.
     (data.pinned || []).forEach((p) => {
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "tap-pinned";
-      const thumb = productThumb(p, "tap-thumb");
-      if (thumb) btn.appendChild(thumb);
-      const name = document.createElement("span");
-      name.textContent = productDisplayName(p.name, p.name_ne);
-      const price = document.createElement("span");
-      price.className = "tap-price";
-      price.textContent = formatRs(p.price);
-      btn.append(name, price);
-      btn.addEventListener("click", () => {
-        addToBill(p, 1);
-        showToast(productDisplayName(p.name, p.name_ne) + t("added"));
-      });
-      container.appendChild(btn);
+      container.appendChild(productTapTile(p, "tap-pinned"));
     });
   } catch {
     showToast(t("couldNotLoadQuick"));

@@ -11,14 +11,16 @@
 <div class="layout">
 
   <section class="controls">
-    <div class="controls-header">
-      <span class="brand">Khatiwada Store</span>
+    <header class="app-header">
+      <div class="app-header-main">
+        <span class="brand">Khatiwada Store</span>
+        <div id="header-datetime" class="header-datetime"></div>
+      </div>
       <div class="header-actions">
         <button id="lang-toggle" class="lang-toggle" type="button" data-i18n="langToggle">नेपाली</button>
         <a class="admin-link" href="{{ url_for('admin_home') }}" data-i18n="admin">⚙ Admin</a>
       </div>
-    </div>
-    <div id="header-datetime" class="header-datetime"></div>
+    </header>
 
     <div class="top-row">
       <button id="scan-btn" class="btn btn-scan" type="button" data-i18n="scan">📷 SCAN</button>
