@@ -340,6 +340,10 @@ def run():
     check("admin name search filters", b"Basmati Rice" in client.get("/admin/products?q=basmati").data)
     html = client.get("/admin/products?category=lpg").data
     check("admin category filter (lpg only)", b"LPG Refill" in html and b"Basmati Rice" not in html)
+    # Live text search is client-side: the page ships the script and per-row
+    # search data so typing filters instantly without a page reload.
+    check("live-search script + row search data present",
+          b"admin-products.js" in html and b"data-search=" in html)
 
     # ---------------------------------------------------------------
     section("Categories — cosmetics + extensibility")

@@ -315,7 +315,10 @@ def admin_products():
     category = request.args.get("category", "").strip()
     if category not in CATEGORIES:
         category = ""
-    products = db.get_products(query or None, category or None)
+    # Category is filtered server-side (the dropdown auto-submits); the text
+    # search is applied live in the browser (static/admin-products.js), so the
+    # list here is filtered by category only and `query` just seeds the box.
+    products = db.get_products(None, category or None)
     dup_extra_count = sum(len(g["remove"]) for g in db.find_duplicate_groups())
     return render_template(
         "admin_products.html",

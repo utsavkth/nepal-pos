@@ -11,16 +11,16 @@
   <a href="{{ url_for('admin_duplicates') }}"><strong>Review &amp; clean up →</strong></a></p>
 {% endif %}
 
-<form method="get" class="filter-bar">
-  <input type="search" name="q" value="{{ query }}" placeholder="Search by name…">
-  <select name="category">
+<form method="get" class="filter-bar" id="admin-filter">
+  <input type="search" id="admin-search" name="q" value="{{ query }}"
+         placeholder="Search name or barcode…" autocomplete="off">
+  <select id="admin-category" name="category">
     <option value="">All categories</option>
     {% for c in categories %}
       <option value="{{ c }}" {% if c == category %}selected{% endif %}>{{ c }}</option>
     {% endfor %}
   </select>
-  <button type="submit">Filter</button>
-  {% if query or category %}<a href="{{ url_for('admin_products') }}">Clear</a>{% endif %}
+  <a id="admin-clear" href="{{ url_for('admin_products') }}">Clear</a>
 </form>
 
 <table>
@@ -32,7 +32,7 @@
   </thead>
   <tbody>
     {% for p in products %}
-    <tr class="{{ 'inactive' if not p.active }}">
+    <tr class="{{ 'inactive' if not p.active }}" data-search="{{ (p.name ~ ' ' ~ (p.barcode or '')) | lower }}">
       <td>{{ p.id }}</td>
       <td>{{ p.name }}</td>
       <td>{{ p.barcode or "—" }}</td>
@@ -58,6 +58,11 @@
     {% else %}
     <tr><td colspan="9" class="empty">No products found.</td></tr>
     {% endfor %}
+    <tr id="no-matches" hidden><td colspan="9" class="empty">No matching products.</td></tr>
   </tbody>
 </table>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='admin-products.js') }}"></script>
 {% endblock %}
