@@ -72,7 +72,8 @@ def init_store_db():
             active BOOLEAN NOT NULL DEFAULT 1,
             weighed_group TEXT,
             name_ne TEXT,
-            pinned INTEGER NOT NULL DEFAULT 0
+            pinned INTEGER NOT NULL DEFAULT 0,
+            image_path TEXT
         )
         """
     )
@@ -122,6 +123,11 @@ def init_store_db():
     # Migration: pin a product as a one-tap button on the cashier screen.
     if "pinned" not in columns:
         conn.execute("ALTER TABLE products ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0")
+    # Migration: optional product photo. Only the filename is stored here; the
+    # image file itself lives on the HDD under data/images/ (see app.IMAGES_DIR),
+    # served via the /media/<filename> route. Keeps the database small and fast.
+    if "image_path" not in columns:
+        conn.execute("ALTER TABLE products ADD COLUMN image_path TEXT")
     # Backfill: classify weighed products that have no explicit group yet.
     for row in conn.execute(
         "SELECT id, name FROM products WHERE is_weighed = 1 AND weighed_group IS NULL"
@@ -344,6 +350,15 @@ def update_product(product_id, barcode, name, category, price, is_weighed, unit,
         """,
         (barcode, name, category, price, is_weighed, unit, weighed_group, name_ne, 1 if pinned else 0, product_id),
     )
+    conn.commit()
+    conn.close()
+
+
+def set_product_image(product_id, image_path):
+    """Set (or clear, with None) a product's photo filename. The file itself is
+    written/removed by the caller (app.py) under data/images/."""
+    conn = get_store_db()
+    conn.execute("UPDATE products SET image_path = ? WHERE id = ?", (image_path, product_id))
     conn.commit()
     conn.close()
 

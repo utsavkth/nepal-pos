@@ -11,6 +11,18 @@ function lineTotal(line) {
   return Math.round(line.quantity * line.unit_price * 100) / 100;
 }
 
+/* Optional product photo thumbnail. Returns an <img> element when the product
+   has an image_path, otherwise null so callers just show text as before. */
+function productThumb(p, className = "thumb") {
+  if (!p || !p.image_path) return null;
+  const img = document.createElement("img");
+  img.className = className;
+  img.src = "/media/" + encodeURIComponent(p.image_path);
+  img.alt = "";
+  img.loading = "lazy";
+  return img;
+}
+
 function showToast(msg, ms = 1800) {
   const toast = document.getElementById("toast");
   toast.textContent = msg;
@@ -163,6 +175,8 @@ function renderSearchResults(products) {
     const price = document.createElement("span");
     price.className = "result-price";
     price.textContent = formatRs(p.price) + (p.is_weighed ? t("perKg") : "");
+    const thumb = productThumb(p, "result-thumb");
+    if (thumb) li.appendChild(thumb);
     li.append(name, price);
     li.addEventListener("click", () => {
       if (p.is_weighed) {
@@ -208,6 +222,8 @@ async function loadQuickTaps() {
       const btn = document.createElement("button");
       btn.type = "button";
       btn.className = "tap-lpg";
+      const thumb = productThumb(p, "tap-thumb");
+      if (thumb) btn.appendChild(thumb);
       const name = document.createElement("span");
       name.textContent = productDisplayName(p.name, p.name_ne);
       const price = document.createElement("span");
@@ -225,6 +241,8 @@ async function loadQuickTaps() {
       const btn = document.createElement("button");
       btn.type = "button";
       btn.className = "tap-pinned";
+      const thumb = productThumb(p, "tap-thumb");
+      if (thumb) btn.appendChild(thumb);
       const name = document.createElement("span");
       name.textContent = productDisplayName(p.name, p.name_ne);
       const price = document.createElement("span");
@@ -265,6 +283,8 @@ function openVarietyList(group) {
     const price = document.createElement("span");
     price.className = "result-price";
     price.textContent = formatRs(p.price) + t("perKg");
+    const thumb = productThumb(p, "variety-thumb");
+    if (thumb) btn.appendChild(thumb);
     btn.append(name, price);
     btn.addEventListener("click", () => {
       varietyModal.hidden = true;

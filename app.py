@@ -4,6 +4,7 @@ import csv
 import io
 import os
 import secrets
+import uuid
 from datetime import date as date_cls
 from functools import wraps
 
@@ -15,9 +16,11 @@ from flask import (
     redirect,
     render_template,
     request,
+    send_from_directory,
     session,
     url_for,
 )
+from PIL import Image, ImageOps, UnidentifiedImageError
 from werkzeug.security import check_password_hash, generate_password_hash
 
 import db
@@ -25,6 +28,15 @@ import nepali_date
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY") or secrets.token_hex(32)
+
+# Product photos live on the HDD next to the databases (data/images/), not in
+# the DB — see the "future phase — product images" note in CLAUDE.md. Only the
+# filename is stored on the product row; the file is served via /media/<name>.
+IMAGES_DIR = os.path.join(db.DATA_DIR, "images")
+os.makedirs(IMAGES_DIR, exist_ok=True)
+# Cap the upload so a huge photo can't exhaust memory before we resize it.
+app.config["MAX_CONTENT_LENGTH"] = 12 * 1024 * 1024  # 12 MB
+IMAGE_MAX_PX = 400  # thumbnails; keeps the cashier fast over Tailscale
 
 CATEGORIES = ["grocery", "weighed", "lpg", "stationery", "cosmetics", "other"]
 UNITS = ["kg", "piece", "packet", "bottle"]
@@ -40,6 +52,61 @@ db.init_db()
 @app.template_filter("rs")
 def rs_filter(value):
     return f"Rs. {value:,.2f}"
+
+
+# ---- Product images -------------------------------------------------------
+
+
+def _save_product_image(file_storage, product_id):
+    """Resize/compress an uploaded photo to a small thumbnail and save it under
+    IMAGES_DIR. Returns the stored filename, or None if the file wasn't a valid
+    image. A unique filename per save avoids stale browser caches on re-upload."""
+    try:
+        img = Image.open(file_storage.stream)
+        img = ImageOps.exif_transpose(img)  # honour phone photo orientation
+    except (UnidentifiedImageError, OSError):
+        return None
+    img.thumbnail((IMAGE_MAX_PX, IMAGE_MAX_PX))
+    has_alpha = img.mode in ("RGBA", "LA") or (img.mode == "P" and "transparency" in img.info)
+    token = uuid.uuid4().hex[:8]
+    if has_alpha:  # keep transparency (e.g. background-removed PNGs)
+        filename = f"{product_id}-{token}.png"
+        img.convert("RGBA").save(os.path.join(IMAGES_DIR, filename), "PNG", optimize=True)
+    else:
+        filename = f"{product_id}-{token}.jpg"
+        img.convert("RGB").save(os.path.join(IMAGES_DIR, filename), "JPEG", quality=82, optimize=True)
+    return filename
+
+
+def _delete_product_image(filename):
+    """Remove an image file from disk, ignoring if it's already gone."""
+    if not filename:
+        return
+    try:
+        os.remove(os.path.join(IMAGES_DIR, filename))
+    except OSError:
+        pass
+
+
+def _handle_product_image_form(product_id, existing_image):
+    """Apply the image part of a submitted product form: a new upload replaces the
+    old photo; ticking 'remove_image' clears it. No-op if neither was supplied."""
+    if request.form.get("remove_image"):
+        _delete_product_image(existing_image)
+        db.set_product_image(product_id, None)
+        return
+    file = request.files.get("image")
+    if file and file.filename:
+        saved = _save_product_image(file, product_id)
+        if saved:
+            _delete_product_image(existing_image)
+            db.set_product_image(product_id, saved)
+
+
+@app.route("/media/<path:filename>")
+def product_image(filename):
+    """Serve a product photo from the HDD images directory."""
+    return send_from_directory(IMAGES_DIR, filename)
 
 
 @app.route("/")
@@ -312,7 +379,8 @@ def admin_product_new():
             if not request.form.get("confirm_duplicate"):
                 duplicate = db.find_duplicate_product(fields["name"], fields["barcode"])
             if not duplicate:
-                db.add_product(**fields)
+                product = db.add_product(**fields)
+                _handle_product_image_form(product["id"], None)
                 flash(f"Added {fields['name']}.")
                 return redirect(url_for("admin_products"))
     return render_template(
@@ -338,6 +406,7 @@ def admin_product_edit(product_id):
         fields, error = _parse_product_form()
         if not error:
             db.update_product(product_id, **fields)
+            _handle_product_image_form(product_id, product["image_path"])
             flash(f"Saved {fields['name']}.")
             return redirect(url_for("admin_products"))
         product = dict(product, **request.form)
@@ -371,6 +440,7 @@ def admin_product_delete(product_id):
     if not product:
         return "Product not found.", 404
     db.delete_product(product_id)
+    _delete_product_image(product.get("image_path"))
     flash(f"Permanently deleted {product['name']}.")
     return redirect(url_for("admin_products", q=request.args.get("q", ""), category=request.args.get("category", "")))
 

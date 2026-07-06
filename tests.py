@@ -14,9 +14,17 @@ import tempfile
 
 from datetime import date as _date
 
+from PIL import Image
 from werkzeug.security import check_password_hash
 
 import nepali_date
+
+
+def _png_bytes(color=(200, 30, 30), size=(600, 800)):
+    """A real (oversized) PNG in memory, to exercise the upload/resize path."""
+    buf = io.BytesIO()
+    Image.new("RGB", size, color).save(buf, "PNG")
+    return buf.getvalue()
 
 # Windows consoles default to cp1252; keep the em-dashes/output readable.
 if hasattr(sys.stdout, "reconfigure"):
@@ -414,6 +422,53 @@ def run():
                              data={"file": (io.BytesIO(b"a,b,c\n1,2,3\n"), "x.csv")},
                              content_type="multipart/form-data")
     check("wrong header rejected", b"CSV header must be" in bad_header.data)
+
+    # ---------------------------------------------------------------
+    section("Admin — product photos")
+    # Add a product with a photo (oversized image should be resized down).
+    r = client.post("/admin/products/new",
+                    data={"name": "Photo Rice", "category": "weighed", "price": "120",
+                          "unit": "kg", "is_weighed": "1", "weighed_group": "Rice",
+                          "image": (io.BytesIO(_png_bytes()), "rice.png")},
+                    content_type="multipart/form-data", follow_redirects=False)
+    check("add-with-photo redirects", r.status_code == 302)
+    prod = _product_by_name("Photo Rice")
+    check("photo filename stored on product", prod and prod["image_path"])
+    img_path = os.path.join(app_module.IMAGES_DIR, prod["image_path"])
+    check("photo file written to disk", os.path.exists(img_path))
+    with Image.open(img_path) as im:
+        check("photo resized to <=400px thumbnail", max(im.size) <= app_module.IMAGE_MAX_PX)
+    served = client.get("/media/" + prod["image_path"])
+    check("photo served over /media",
+          served.status_code == 200 and served.mimetype.startswith("image/") and len(served.data) > 0)
+    served.close()  # release the file handle (Windows won't delete an open file)
+    # Search results now carry the image_path for the cashier thumbnail.
+    hit = client.get("/api/products/search?q=Photo Rice").get_json()
+    check("search result includes image_path", hit and hit[0].get("image_path") == prod["image_path"])
+    # Re-upload replaces the file (old one removed).
+    old_file = prod["image_path"]
+    client.post(f"/admin/products/{prod['id']}/edit",
+                data={"name": "Photo Rice", "category": "weighed", "price": "120",
+                      "unit": "kg", "is_weighed": "1", "weighed_group": "Rice",
+                      "image": (io.BytesIO(_png_bytes((20, 120, 40))), "rice2.png")},
+                content_type="multipart/form-data")
+    prod2 = _product_by_name("Photo Rice")
+    check("re-upload changes the stored filename", prod2["image_path"] != old_file)
+    check("old photo file deleted on replace", not os.path.exists(os.path.join(app_module.IMAGES_DIR, old_file)))
+    # Ticking "remove photo" clears it and deletes the file.
+    client.post(f"/admin/products/{prod['id']}/edit",
+                data={"name": "Photo Rice", "category": "weighed", "price": "120",
+                      "unit": "kg", "is_weighed": "1", "weighed_group": "Rice", "remove_image": "1"},
+                content_type="multipart/form-data")
+    prod3 = _product_by_name("Photo Rice")
+    check("remove-photo clears image_path", prod3["image_path"] is None)
+    check("removed photo file deleted", not os.path.exists(os.path.join(app_module.IMAGES_DIR, prod2["image_path"])))
+    # A non-image upload is ignored, not stored.
+    client.post("/admin/products/new",
+                data={"name": "Bad Photo", "category": "grocery", "price": "10", "unit": "piece",
+                      "image": (io.BytesIO(b"not an image"), "notimage.png")},
+                content_type="multipart/form-data")
+    check("non-image upload leaves image_path empty", _product_by_name("Bad Photo")["image_path"] is None)
 
     # ---------------------------------------------------------------
     section("Admin — change password")

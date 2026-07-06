@@ -25,6 +25,7 @@ The shop-facing display name shown in the UI is "Khatiwada Store"; "Nepal Grocer
 15. Bilingual UI (English/Nepali): the cashier screen has a language toggle that translates interface chrome ONLY — buttons, labels, headings, prompts, statuses, and toasts, plus display-only Nepali labels for the five fixed weighed-group buttons (Rice→चामल, Dal→दाल, Sugar→चिनी, Flour→पीठो, Other→अन्य). Product names are not machine-translated, but each product may carry an OPTIONAL Nepali name (`name_ne` column, set by Utsav in the admin edit form); when the Nepali toggle is on and a `name_ne` is set, the cashier shows it (variety picker, search, bill, weight pad, toasts), otherwise it falls back to the canonical English `name`. This is display-only — the English `name` is what gets stored on the sale (`sale_items.product_name`), so reports and CSV are unaffected. Other stored data is never translated; money keeps the `Rs. 1,250.00` format in both languages (decision 8); numerals stay Western digits. The choice persists per device via localStorage (`pos_lang`). Translations live in a plain JS dictionary in `static/i18n.js` — no framework, no server round-trip, no backend involvement. The admin panel stays English-only (it's Utsav's screen).
 16. Cashier header shows the current date in the Bikram Sambat (Nepali) calendar plus the current Kathmandu time in 12-hour format, ticking live (e.g. English `Saturday, 2083 Asar 20 · 2:45 PM`; Nepali `शनिबार, २०८३ असार २० · २:४५ PM` with Devanagari digits, respecting the decision-15 toggle). The cashier header itself is display-only and frontend-only (`static/nepali-date.js`) — no backend. BS conversion uses an embedded month-length table (authoritative medic/bikram-sambat data) anchored at BS 2081-01-01 = 2024-04-13 AD, covering BS 2078–2090 (AD ~2021–2033); the table must be extended before ~2033 or the header falls back to time-only. This is presentation only: sales still store Gregorian ISO dates at Kathmandu time (convention 3) — BS is never persisted. The admin sales reports also present BS dates (in English script, since the admin panel stays English per decision 15) using the same conversion via a Python port, `nepali_date.py`, which must be kept in sync with the JS table.
 17. Pinned cashier buttons: any FIXED-PRICE product can be marked "pinned" (`pinned` column) to appear as its own one-tap button on the cashier screen (e.g. Milk, a popular biscuit) — one tap adds it to the bill. Set self-serve via a checkbox in both the admin edit form and Quick Add (greyed out for weighed items). Pinned buttons are visually distinct (indigo) from the weighed-category buttons (green) and LPG (orange). Weighed and LPG products are excluded from the pinned list — they already get buttons via decisions 9 and their category. This lets staff curate the cashier's quick buttons without a code change.
+18. Product images (BUILT — this is the former "future phase", now implemented): each product may carry an OPTIONAL photo so parents can identify items visually (especially similar-looking rice/dal varieties). Only the filename is stored on the product row (`image_path` column); the image file itself lives on the Pi's HDD under `data/images/` (`/app/data/images/` in the container, on the same volume as the databases so it survives rebuilds — decision 5), NOT in the database, and is served by the `/media/<filename>` Flask route. Upload is via a file input on the admin add/edit product form (`enctype=multipart/form-data`); on save the image is resized to a ≤400px thumbnail and recompressed with Pillow (JPEG q82, or PNG when the source has transparency, e.g. a background-removed logo) so it loads fast over Tailscale — each save gets a unique filename to defeat browser caching, and the old file is deleted on replace/remove/product-delete. A "remove photo" checkbox clears it. The cashier shows the thumbnail next to the product in search results, the weighed-variety picker, and on LPG/pinned one-tap buttons; products with no photo just show text exactly as before. Pillow is the one image dependency (see convention 1's "where possible"). NOT yet added to Quick Add (a camera capture there is a possible follow-up).
 
 ## Project structure
 
@@ -35,11 +36,12 @@ The shop-facing display name shown in the UI is "Khatiwada Store"; "Nepal Grocer
 - `static/` — CSS, JavaScript, barcode scanner code
 - `Dockerfile` and `docker-compose.yml` — container config (port mapping 5050:5000, volume `/data/nepal-pos:/app/data`)
 - Database files: `store.db` (products) and `sales.db` (sales + sale_items), created in `data/` locally, `/app/data` in the container
+- Product photos: `data/images/` locally, `/app/data/images/` in the container (same volume as the DBs); only Pillow is added for resizing/compressing uploads (see decision 18)
 
 ## Database schema
 
 products (store.db):
-id INTEGER PK, barcode TEXT nullable, name TEXT (canonical English, used on sales), category TEXT (grocery/weighed/lpg/stationery/cosmetics/other), price REAL, is_weighed BOOLEAN, unit TEXT (kg/piece/packet/bottle), active BOOLEAN (soft delete), weighed_group TEXT nullable (Rice/Dal/Sugar/Flour/Other), name_ne TEXT nullable (optional Nepali display name, cashier-only — see decision 15), pinned INTEGER default 0 (fixed-price product shown as its own one-tap cashier button — see decision 17)
+id INTEGER PK, barcode TEXT nullable, name TEXT (canonical English, used on sales), category TEXT (grocery/weighed/lpg/stationery/cosmetics/other), price REAL, is_weighed BOOLEAN, unit TEXT (kg/piece/packet/bottle), active BOOLEAN (soft delete), weighed_group TEXT nullable (Rice/Dal/Sugar/Flour/Other), name_ne TEXT nullable (optional Nepali display name, cashier-only — see decision 15), pinned INTEGER default 0 (fixed-price product shown as its own one-tap cashier button — see decision 17), image_path TEXT nullable (filename of the optional product photo stored under data/images/ — see decision 18)
 
 The `category` column is NOT constrained by a DB CHECK — the allowed list lives in app code (`CATEGORIES` in `app.py`), so new categories (cosmetics was added this way) need only a code-list change, no schema migration. Both the admin add/edit form and the Quick Add form (for fixed-price items) expose the category picker.
 
@@ -77,7 +79,7 @@ shows a normal login form checked against the stored hash. A logged-in admin can
 change the password from inside the panel (must enter the current password),
 so it can be updated without SSH/Pi access. `SECRET_KEY` is still an env var
 (Flask session signing); only the admin password moved into the database.
-1. Add / edit / deactivate products (soft delete via `active` flag)
+1. Add / edit / deactivate / permanently delete products (soft delete via `active` flag; permanent delete is safe because sales store a name snapshot), with an optional product photo upload (see decision 18)
 2. View all products, searchable, filterable by category
 3. Sales reports: daily, weekly, and monthly (Gregorian) totals, plus Bikram Sambat dates — a BS date column on the daily report and a monthly-by-BS-month breakdown, shown in English script (`nepali_date.py`)
 4. Export sales to CSV
@@ -92,28 +94,16 @@ so it can be updated without SSH/Pi access. `SECRET_KEY` is still an env var
 4. Prices and weights use REAL; quantity for weighed items is kg with up to 3 decimals
 5. Never use bullet points with dashes in generated docs — use numbered lists or plain bullets
 
-## Future phase — product images (not v1, do not build yet)
+## Product images (BUILT — see decision 18)
 
-Once the skeleton (phases 1-8) is working, add product photos so parents
-can visually identify items instead of relying only on name/category —
-especially useful for weighed item varieties (different rice/dal types
-can look similar in a list but very different in a photo).
-
-Planned approach when this phase starts:
-1. Add an `image_path` TEXT column (nullable) to the products table
-2. Admin panel gets an image upload control on the add/edit product form
-3. Images stored on the HDD alongside the databases (e.g.
-   `/data/nepal-pos/images/`), not in the database itself — keep the
-   database small and fast
-4. Cashier screen and category variety-picker (see weighed items,
-   decision 9) show the thumbnail next to each product name where
-   available; products without an image just show text as they do now
-5. Keep uploads small — resize/compress on upload so the Chromebook
-   and iPhones load the cashier screen quickly over Tailscale
-
-Flagging this now so the products table and file layout aren't designed
-in a way that makes adding this later awkward — but this is explicitly
-OUT OF SCOPE until the skeleton above is complete and tested.
+Product photos are now implemented (this was the former "future phase"). Summary:
+`image_path` column stores only the filename; files live on the HDD under
+`data/images/` (`/app/data/images/` in the container, same volume as the DBs);
+served via `/media/<filename>`; uploaded on the admin add/edit form; resized to a
+≤400px thumbnail and recompressed with Pillow on save; shown as thumbnails on the
+cashier (search results, variety picker, LPG/pinned buttons). Full detail and the
+rationale live in decision 18 above. Possible follow-up: a camera-capture option
+inside Quick Add so staff can photograph a new item at the till.
 
 ## Build phases (work in this order)
 

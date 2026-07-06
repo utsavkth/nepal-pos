@@ -7,11 +7,22 @@
 <p class="error">⚠️ <strong>Possible duplicate.</strong> "{{ duplicate.name }}" ({{ duplicate.price | rs }}{% if duplicate.barcode %} · barcode {{ duplicate.barcode }}{% endif %}) is already in the system. Check it's not the same item — or press <strong>Add anyway</strong> below to create it regardless.</p>
 {% endif %}
 
-<form method="post" class="product-form">
+<form method="post" class="product-form" enctype="multipart/form-data">
   {% if duplicate %}<input type="hidden" name="confirm_duplicate" value="1">{% endif %}
   <label>Name
     <input name="name" required value="{{ product.name if product else '' }}">
   </label>
+  <div class="image-field">
+    <span class="image-field-label">Photo (optional — shown on the cashier screen)</span>
+    {% if product and product.image_path %}
+      <div class="current-image">
+        <img src="{{ url_for('product_image', filename=product.image_path) }}" alt="{{ product.name }}">
+        <label class="checkbox"><input type="checkbox" name="remove_image" value="1"> Remove this photo</label>
+      </div>
+    {% endif %}
+    <input type="file" name="image" accept="image/*">
+    <span class="hint">A clear photo on a plain background works best. Big images are shrunk automatically.</span>
+  </div>
   <label>Nepali name (optional — shown on the cashier when the Nepali toggle is on; falls back to the name above)
     <input name="name_ne" value="{{ product.name_ne if product and product.name_ne else '' }}" placeholder="e.g. बासमती चामल">
   </label>

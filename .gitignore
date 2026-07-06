@@ -1,5 +1,6 @@
 venv/
 data/*.db
+data/images/
 __pycache__/
 *.pyc
 .claude/launch.json

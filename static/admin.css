@@ -152,6 +152,10 @@ td.actions form { display: inline-block; margin-left: 6px; }
 .product-form label { display: flex; flex-direction: column; gap: 5px; font-weight: 600; }
 .product-form label.checkbox { flex-direction: row; align-items: center; gap: 8px; }
 .product-form input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--accent); }
+.image-field { display: flex; flex-direction: column; gap: 8px; font-weight: 600; }
+.image-field .hint { font-weight: 400; font-size: 0.85rem; color: var(--muted); }
+.current-image { display: flex; align-items: center; gap: 12px; }
+.current-image img { width: 90px; height: 90px; object-fit: cover; border-radius: 8px; border: 1px solid var(--border); }
 .form-actions { display: flex; gap: 10px; margin-top: 6px; }
 
 /* Reports */
