@@ -11,10 +11,22 @@ SALES_DB_PATH = os.path.join(DATA_DIR, "sales.db")
 
 SHOP_TZ = ZoneInfo("Asia/Kathmandu")
 
-# Quick-tap grouping for weighed items. Stored explicitly on each product in
-# weighed_group; the keywords are only a fallback to classify rows that never
-# had a group set (pre-migration rows, CSV imports without the field).
+# Cashier quick-tap groups. Groups are now user-defined rows in the `groups`
+# table (name, optional Nepali name, weighed-or-fixed, order). A product's
+# membership is stored in its `weighed_group` column (kept for the light
+# migration — it now holds any group name, weighed or fixed, not just weighed).
+# WEIGHED_GROUPS is only the default weighed set seeded on first run + the
+# keyword targets for auto-classifying weighed items that arrive without a group.
 WEIGHED_GROUPS = ["Rice", "Dal", "Sugar", "Flour", "Other"]
+# (name, name_ne, is_weighed, sort_order) — seeded once, then editable in admin.
+DEFAULT_GROUPS = [
+    ("Rice", "चामल", 1, 10),
+    ("Dal", "दाल", 1, 20),
+    ("Sugar", "चिनी", 1, 30),
+    ("Flour", "पीठो", 1, 40),
+    ("Other", "अन्य", 1, 50),
+    ("LPG", "ग्यास", 0, 60),
+]
 _GROUP_KEYWORDS = [
     ("Rice", ["rice"]),
     ("Dal", ["dal", "lentil"]),
@@ -32,12 +44,14 @@ def infer_weighed_group(name):
 
 
 def _normalise_weighed_group(is_weighed, name, weighed_group):
-    """Weighed products always get a group (explicit, else inferred); others never do."""
-    if not is_weighed:
-        return None
-    if weighed_group in WEIGHED_GROUPS:
+    """A product's cashier group. Any product (weighed or fixed) may belong to a
+    group; an explicit choice wins. A weighed item with no group is auto-sorted
+    by keyword; a fixed item with no group simply has none."""
+    if weighed_group:
         return weighed_group
-    return infer_weighed_group(name)
+    if is_weighed:
+        return infer_weighed_group(name)
+    return None
 
 
 def get_store_db():
@@ -135,6 +149,30 @@ def init_store_db():
         conn.execute(
             "UPDATE products SET weighed_group = ? WHERE id = ?",
             (infer_weighed_group(row["name"]), row["id"]),
+        )
+    # User-defined cashier button groups (see WEIGHED_GROUPS/DEFAULT_GROUPS note).
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS groups (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL UNIQUE,
+            name_ne TEXT,
+            is_weighed INTEGER NOT NULL DEFAULT 1,
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            active INTEGER NOT NULL DEFAULT 1
+        )
+        """
+    )
+    # First-run seed: the default groups, and fold existing LPG products into an
+    # "LPG" group so the cashier button system is driven entirely by `groups`.
+    if conn.execute("SELECT COUNT(*) FROM groups").fetchone()[0] == 0:
+        conn.executemany(
+            "INSERT INTO groups (name, name_ne, is_weighed, sort_order, active) VALUES (?, ?, ?, ?, 1)",
+            DEFAULT_GROUPS,
+        )
+        conn.execute(
+            "UPDATE products SET weighed_group = 'LPG' "
+            "WHERE category = 'lpg' AND (weighed_group IS NULL OR weighed_group = '')"
         )
     # Key/value settings (currently just the hashed admin password).
     conn.execute(
@@ -268,18 +306,125 @@ def find_duplicate_product(name, barcode=None, exclude_id=None):
     return dict(row) if row else None
 
 
-def get_quick_tap_products():
-    """Return active weighed products and LPG products for the quick-tap buttons."""
+# ---- Cashier button groups -----------------------------------------------
+
+
+def get_groups(active_only=False):
+    """All groups for the admin/product forms, ordered for display."""
     conn = get_store_db()
-    rows = conn.execute(
-        """
-        SELECT * FROM products
-        WHERE active = 1 AND category IN ('weighed', 'lpg')
-        ORDER BY category DESC, id
-        """
-    ).fetchall()
+    sql = "SELECT * FROM groups"
+    if active_only:
+        sql += " WHERE active = 1"
+    sql += " ORDER BY sort_order, name"
+    rows = conn.execute(sql).fetchall()
     conn.close()
     return [dict(r) for r in rows]
+
+
+def get_group(group_id):
+    conn = get_store_db()
+    row = conn.execute("SELECT * FROM groups WHERE id = ?", (group_id,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def get_group_by_name(name):
+    conn = get_store_db()
+    row = conn.execute("SELECT * FROM groups WHERE name = ? COLLATE NOCASE", (name,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def group_names(active_only=False):
+    return [g["name"] for g in get_groups(active_only=active_only)]
+
+
+def add_group(name, name_ne=None, is_weighed=1, sort_order=0):
+    conn = get_store_db()
+    cur = conn.execute(
+        "INSERT INTO groups (name, name_ne, is_weighed, sort_order, active) VALUES (?, ?, ?, ?, 1)",
+        (name, name_ne, 1 if is_weighed else 0, sort_order),
+    )
+    conn.commit()
+    row = conn.execute("SELECT * FROM groups WHERE id = ?", (cur.lastrowid,)).fetchone()
+    conn.close()
+    return dict(row)
+
+
+def update_group(group_id, name, name_ne, is_weighed, sort_order):
+    """Rename/retype a group. If the name changes, move its member products
+    (matched by the old name in weighed_group) to the new name so they stay put."""
+    conn = get_store_db()
+    old = conn.execute("SELECT name FROM groups WHERE id = ?", (group_id,)).fetchone()
+    conn.execute(
+        "UPDATE groups SET name = ?, name_ne = ?, is_weighed = ?, sort_order = ? WHERE id = ?",
+        (name, name_ne, 1 if is_weighed else 0, sort_order, group_id),
+    )
+    if old and old["name"] != name:
+        conn.execute(
+            "UPDATE products SET weighed_group = ? WHERE weighed_group = ?", (name, old["name"])
+        )
+    conn.commit()
+    conn.close()
+
+
+def set_group_active(group_id, active):
+    conn = get_store_db()
+    conn.execute("UPDATE groups SET active = ? WHERE id = ?", (1 if active else 0, group_id))
+    conn.commit()
+    conn.close()
+
+
+def delete_group(group_id):
+    """Remove a group. Member products are un-grouped (their weighed_group cleared),
+    not deleted — they stay in the catalogue and remain searchable."""
+    conn = get_store_db()
+    row = conn.execute("SELECT name FROM groups WHERE id = ?", (group_id,)).fetchone()
+    if row:
+        conn.execute("UPDATE products SET weighed_group = NULL WHERE weighed_group = ?", (row["name"],))
+        conn.execute("DELETE FROM groups WHERE id = ?", (group_id,))
+    conn.commit()
+    conn.close()
+
+
+def group_product_counts():
+    """{group name: number of active products} for the admin groups list."""
+    conn = get_store_db()
+    rows = conn.execute(
+        "SELECT weighed_group AS name, COUNT(*) AS n FROM products "
+        "WHERE active = 1 AND weighed_group IS NOT NULL AND weighed_group != '' "
+        "GROUP BY weighed_group"
+    ).fetchall()
+    conn.close()
+    return {r["name"]: r["n"] for r in rows}
+
+
+def get_cashier_groups():
+    """Active groups (in display order) that have at least one active product,
+    each with its member products — this drives the cashier quick-tap buttons."""
+    conn = get_store_db()
+    groups = conn.execute("SELECT * FROM groups WHERE active = 1 ORDER BY sort_order, name").fetchall()
+    products = conn.execute(
+        "SELECT * FROM products WHERE active = 1 AND weighed_group IS NOT NULL AND weighed_group != '' ORDER BY name"
+    ).fetchall()
+    conn.close()
+    members = {}
+    for p in products:
+        members.setdefault(p["weighed_group"], []).append(dict(p))
+    result = []
+    for g in groups:
+        group_products = members.get(g["name"], [])
+        if not group_products:
+            continue  # don't show empty buttons
+        result.append(
+            {
+                "name": g["name"],
+                "name_ne": g["name_ne"],
+                "is_weighed": g["is_weighed"],
+                "products": group_products,
+            }
+        )
+    return result
 
 
 def get_pinned_products():

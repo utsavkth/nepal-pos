@@ -55,11 +55,13 @@
     <input type="checkbox" name="pinned" value="1" {% if product and product.pinned %}checked{% endif %}>
     Show as a one-tap button on the sales screen (for fixed-price items you sell often, e.g. Milk)
   </label>
-  <label>Quick-tap group (weighed items only; auto-detected from the name if left on auto)
+  <label>Cashier group (which quick-tap button this appears under; blank = none, or auto-sorted for weighed items)
     <select name="weighed_group">
-      <option value="">auto</option>
-      {% for g in weighed_groups %}
-        <option value="{{ g }}" {% if product and product.weighed_group == g %}selected{% endif %}>{{ g }}</option>
+      <option value="">none / auto</option>
+      {% for g in groups %}
+        <option value="{{ g.name }}" {% if product and product.weighed_group == g.name %}selected{% endif %}>
+          {{ g.name }} ({{ "weighed" if g.is_weighed else "fixed" }})
+        </option>
       {% endfor %}
     </select>
   </label>

@@ -132,18 +132,14 @@ def api_product_by_barcode(barcode):
 
 @app.route("/api/products/quick-taps")
 def api_quick_taps():
-    products = db.get_quick_tap_products()
-    groups = []
-    for label in db.WEIGHED_GROUPS:
-        matches = [
-            p
-            for p in products
-            if p["category"] == "weighed" and (p["weighed_group"] or "Other") == label
-        ]
-        groups.append({"label": label, "products": matches})
-    lpg = [p for p in products if p["category"] == "lpg"]
-    pinned = db.get_pinned_products()
-    return jsonify({"groups": groups, "lpg": lpg, "pinned": pinned})
+    """Cashier quick-tap buttons: user-defined groups (each with its products)
+    plus the individually-pinned products. all_groups lists every active group
+    (including empty ones) so Quick Add can offer them."""
+    return jsonify({
+        "groups": db.get_cashier_groups(),
+        "pinned": db.get_pinned_products(),
+        "all_groups": db.get_groups(active_only=True),
+    })
 
 
 @app.route("/api/products/quick-add", methods=["POST"])
@@ -168,7 +164,8 @@ def api_quick_add():
             }), 409
     if data.get("is_weighed"):
         weighed_group = data.get("weighed_group")
-        if weighed_group not in db.WEIGHED_GROUPS:
+        weighed_names = [g["name"] for g in db.get_groups(active_only=True) if g["is_weighed"]]
+        if weighed_group not in weighed_names:
             return jsonify({"error": "invalid_weighed_group"}), 400
         product = db.add_product(
             name=name,
@@ -350,7 +347,7 @@ def _parse_product_form():
     if price <= 0:
         return None, "Price must be greater than zero."
     weighed_group = request.form.get("weighed_group", "").strip() or None
-    if weighed_group is not None and weighed_group not in db.WEIGHED_GROUPS:
+    if weighed_group is not None and weighed_group not in db.group_names():
         return None, "Choose a valid quick-tap group."
     name_ne = request.form.get("name_ne", "").strip() or None
     pinned = 1 if request.form.get("pinned") else 0
@@ -393,7 +390,7 @@ def admin_product_new():
         duplicate=duplicate,
         categories=CATEGORIES,
         units=UNITS,
-        weighed_groups=db.WEIGHED_GROUPS,
+        groups=db.get_groups(active_only=True),
         mode="new",
     )
 
@@ -419,7 +416,7 @@ def admin_product_edit(product_id):
         error=error,
         categories=CATEGORIES,
         units=UNITS,
-        weighed_groups=db.WEIGHED_GROUPS,
+        groups=db.get_groups(active_only=True),
         mode="edit",
     )
 
@@ -462,6 +459,91 @@ def admin_duplicates_cleanup():
     removed = db.remove_duplicate_products()
     flash(f"Removed {removed} duplicate {'copy' if removed == 1 else 'copies'} (kept one of each).")
     return redirect(url_for("admin_products"))
+
+
+# ---- Cashier button groups (user-defined) ----
+
+
+def _parse_group_form(group_id=None):
+    name = request.form.get("name", "").strip()
+    name_ne = request.form.get("name_ne", "").strip() or None
+    is_weighed = 1 if request.form.get("is_weighed") else 0
+    try:
+        sort_order = int(request.form.get("sort_order", "0") or 0)
+    except ValueError:
+        return None, "Order must be a whole number."
+    if not name:
+        return None, "Name is required."
+    existing = db.get_group_by_name(name)
+    if existing and existing["id"] != group_id:
+        return None, f'A group named "{name}" already exists.'
+    return {"name": name, "name_ne": name_ne, "is_weighed": is_weighed, "sort_order": sort_order}, None
+
+
+@app.route("/admin/groups")
+@admin_required
+def admin_groups():
+    return render_template(
+        "admin_groups.html", groups=db.get_groups(), counts=db.group_product_counts()
+    )
+
+
+@app.route("/admin/groups/new", methods=["GET", "POST"])
+@admin_required
+def admin_group_new():
+    error = None
+    if request.method == "POST":
+        fields, error = _parse_group_form()
+        if not error:
+            db.add_group(**fields)
+            flash(f"Added group {fields['name']}.")
+            return redirect(url_for("admin_groups"))
+    return render_template(
+        "admin_group_form.html",
+        group=request.form if request.method == "POST" else None,
+        error=error,
+        mode="new",
+    )
+
+
+@app.route("/admin/groups/<int:group_id>/edit", methods=["GET", "POST"])
+@admin_required
+def admin_group_edit(group_id):
+    group = db.get_group(group_id)
+    if not group:
+        return "Group not found.", 404
+    error = None
+    if request.method == "POST":
+        fields, error = _parse_group_form(group_id=group_id)
+        if not error:
+            db.update_group(group_id, **fields)
+            flash(f"Saved group {fields['name']}.")
+            return redirect(url_for("admin_groups"))
+        group = dict(group, **request.form)
+    return render_template("admin_group_form.html", group=group, error=error, mode="edit")
+
+
+@app.route("/admin/groups/<int:group_id>/active", methods=["POST"])
+@admin_required
+def admin_group_active(group_id):
+    group = db.get_group(group_id)
+    if not group:
+        return "Group not found.", 404
+    make_active = request.form.get("active") == "1"
+    db.set_group_active(group_id, make_active)
+    flash(f"{'Showing' if make_active else 'Hid'} group {group['name']}.")
+    return redirect(url_for("admin_groups"))
+
+
+@app.route("/admin/groups/<int:group_id>/delete", methods=["POST"])
+@admin_required
+def admin_group_delete(group_id):
+    group = db.get_group(group_id)
+    if not group:
+        return "Group not found.", 404
+    db.delete_group(group_id)
+    flash(f"Deleted group {group['name']} — its products were kept, just un-grouped.")
+    return redirect(url_for("admin_groups"))
 
 
 @app.route("/admin/reports")

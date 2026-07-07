@@ -14,7 +14,7 @@ PRODUCTS = [
     (None, "Chana Dal", "weighed", 210.00, 1, "kg", "Dal", "चना दाल", 0),
     (None, "Sugar", "weighed", 110.00, 1, "kg", "Sugar", "चिनी", 0),
     (None, "Flour", "weighed", 90.00, 1, "kg", "Flour", "पीठो", 0),
-    (None, "LPG Cylinder Refill", "lpg", 1900.00, 0, "piece", None, "ग्यास सिलिन्डर", 0),
+    (None, "LPG Cylinder Refill", "lpg", 1900.00, 0, "piece", "LPG", "ग्यास सिलिन्डर", 0),
     (None, "Exercise Copy", "stationery", 40.00, 0, "piece", None, None, 0),
     ("8901030865278", "Fair Cream 50g", "cosmetics", 180.00, 0, "piece", None, None, 0),
     (None, "Matchbox", "other", 5.00, 0, "piece", None, "सलाई", 0),

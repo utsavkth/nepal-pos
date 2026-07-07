@@ -1,0 +1,51 @@
+{% extends "admin_base.html" %}
+{% block title %}Groups{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Cashier groups</h1>
+  <a class="button" href="{{ url_for('admin_group_new') }}">+ Add group</a>
+</div>
+<p class="hint">
+  Groups are the coloured quick-tap buttons on the cashier screen. A
+  <strong>weighed</strong> group (e.g. Rice) opens a variety list then the weight
+  pad; a <strong>fixed-price</strong> group (e.g. LPG, Oil) opens a list you tap
+  to add straight to the bill. A group's button appears once it has at least one
+  product — assign products to a group on the product's <em>Edit</em> page.
+</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Order</th><th>Name</th><th>Nepali</th><th>Type</th>
+      <th class="num">Products</th><th>Shown</th><th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for g in groups %}
+    <tr class="{{ 'inactive' if not g.active }}">
+      <td>{{ g.sort_order }}</td>
+      <td>{{ g.name }}</td>
+      <td>{{ g.name_ne or "—" }}</td>
+      <td>{{ "weighed (per kg)" if g.is_weighed else "fixed price" }}</td>
+      <td class="num">{{ counts.get(g.name, 0) }}</td>
+      <td>{{ "yes" if g.active else "hidden" }}</td>
+      <td class="actions">
+        <a class="button small" href="{{ url_for('admin_group_edit', group_id=g.id) }}">Edit</a>
+        <form method="post" action="{{ url_for('admin_group_active', group_id=g.id) }}">
+          <input type="hidden" name="active" value="{{ 0 if g.active else 1 }}">
+          <button type="submit" class="small {{ 'danger' if g.active else '' }}">
+            {{ "Hide" if g.active else "Show" }}
+          </button>
+        </form>
+        <form method="post" action="{{ url_for('admin_group_delete', group_id=g.id) }}"
+              onsubmit="return confirm('Delete this group? Its products are kept, just un-grouped.');">
+          <button type="submit" class="small danger">Delete</button>
+        </form>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="7" class="empty">No groups yet.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

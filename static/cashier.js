@@ -255,51 +255,36 @@ async function loadQuickTaps() {
   try {
     const res = await fetch("/api/products/quick-taps");
     const data = await res.json();
+    populateQuickAddGroups(data.all_groups || []);
     const container = document.getElementById("quick-taps");
     container.innerHTML = "";
+    // User-defined groups. Weighed groups (green) open a variety list then the
+    // weight pad; fixed groups (orange) open a list you tap to add. A known name
+    // gets an SVG icon; anything custom gets a letter badge.
     data.groups.forEach((group) => {
-      // "Other" only earns a button once something is actually in it
-      if (group.label === "Other" && group.products.length === 0) return;
       const btn = document.createElement("button");
       btn.type = "button";
-      btn.className = "tap tap-weighed";
+      btn.className = "tap " + (group.is_weighed ? "tap-weighed" : "tap-lpg");
       const media = document.createElement("span");
-      media.className = "tap-media icon";
-      media.innerHTML = tapIcon(group.label);
+      const icon = TAP_ICONS[group.name];
+      if (icon) {
+        media.className = "tap-media icon";
+        media.innerHTML = icon;
+      } else {
+        media.className = "tap-media letter";
+        media.textContent = (group.name || "?").trim().charAt(0).toUpperCase();
+      }
       const name = document.createElement("span");
       name.className = "tap-name";
-      name.textContent = groupLabel(group.label);
+      name.textContent = productDisplayName(group.name, group.name_ne);
       const sub = document.createElement("span");
       sub.className = "tap-sub";
-      sub.textContent =
-        group.products.length === 1
-          ? t("oneVariety")
-          : group.products.length + " " + t("varieties");
+      const n = group.products.length;
+      sub.textContent = n === 1 ? t("oneVariety") : n + " " + t("varieties");
       btn.append(media, name, sub);
       btn.addEventListener("click", () => openVarietyList(group));
       container.appendChild(btn);
     });
-    // LPG/gas: all gas products live under ONE "LPG" button that opens a picker
-    // (like the weighed category buttons), instead of one tile per gas item.
-    if (data.lpg && data.lpg.length) {
-      const lpgGroup = { label: "LPG", products: data.lpg };
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "tap tap-lpg";
-      const media = document.createElement("span");
-      media.className = "tap-media icon";
-      media.innerHTML = tapIcon("LPG");
-      const name = document.createElement("span");
-      name.className = "tap-name";
-      name.textContent = groupLabel("LPG");
-      const sub = document.createElement("span");
-      sub.className = "tap-sub";
-      sub.textContent =
-        data.lpg.length === 1 ? t("oneVariety") : data.lpg.length + " " + t("varieties");
-      btn.append(media, name, sub);
-      btn.addEventListener("click", () => openVarietyList(lpgGroup));
-      container.appendChild(btn);
-    }
     // Pinned products — one-tap fixed-price buttons the shop chose to show here.
     (data.pinned || []).forEach((p) => {
       container.appendChild(productTapTile(p, "tap-pinned"));
@@ -314,13 +299,14 @@ async function loadQuickTaps() {
 const varietyModal = document.getElementById("variety-modal");
 
 function openVarietyList(group) {
-  document.getElementById("variety-title").textContent = groupLabel(group.label);
+  const label = productDisplayName(group.name, group.name_ne);
+  document.getElementById("variety-title").textContent = label;
   const list = document.getElementById("variety-list");
   list.innerHTML = "";
   if (group.products.length === 0) {
     const li = document.createElement("li");
     li.className = "variety-empty";
-    li.textContent = t("noVarieties1") + groupLabel(group.label) + t("noVarieties2");
+    li.textContent = t("noVarieties1") + label + t("noVarieties2");
     list.appendChild(li);
   }
   group.products.forEach((p) => {
@@ -478,6 +464,22 @@ const quickAddGroupSelect = document.getElementById("quick-add-group");
 const quickAddCategorySelect = document.getElementById("quick-add-category");
 const quickAddPriceLabel = document.getElementById("quick-add-price-label");
 
+/* Fill the Quick Add weighed-group dropdown from the active weighed groups, so a
+   new variety can be filed under any group the shop has created (not a fixed
+   list). Called whenever quick-taps load / the language changes. */
+function populateQuickAddGroups(allGroups) {
+  const weighed = (allGroups || []).filter((g) => g.is_weighed);
+  const prev = quickAddGroupSelect.value;
+  quickAddGroupSelect.innerHTML = "";
+  weighed.forEach((g) => {
+    const opt = document.createElement("option");
+    opt.value = g.name;
+    opt.textContent = productDisplayName(g.name, g.name_ne);
+    quickAddGroupSelect.appendChild(opt);
+  });
+  if (prev && weighed.some((g) => g.name === prev)) quickAddGroupSelect.value = prev;
+}
+
 /* Both pickers stay visible; the one that doesn't apply is greyed out.
    Weighed ticked -> weighed category active, regular category disabled.
    Unticked -> the reverse. */
@@ -509,7 +511,7 @@ function openQuickAdd(barcode = null, prefillName = "") {
   document.getElementById("quick-add-name").value = prefillName;
   document.getElementById("quick-add-price").value = "";
   quickAddWeighed.checked = false;
-  quickAddGroupSelect.value = "Rice";
+  if (quickAddGroupSelect.options.length) quickAddGroupSelect.selectedIndex = 0;
   quickAddCategorySelect.value = "grocery";
   document.getElementById("quick-add-pinned").checked = false;
   updateQuickAddPickers();

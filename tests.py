@@ -74,7 +74,7 @@ SEED = [
     (None, "Musuro Dal", "weighed", 190.0, 1, "kg", "Dal"),
     (None, "Sugar", "weighed", 110.0, 1, "kg", "Sugar"),
     (None, "Flour", "weighed", 90.0, 1, "kg", "Flour"),
-    (None, "LPG Refill", "lpg", 1900.0, 0, "piece", None),
+    (None, "LPG Refill", "lpg", 1900.0, 0, "piece", "LPG"),
     (None, "Pencil", "stationery", 10.0, 0, "piece", None),
 ]
 
@@ -124,11 +124,12 @@ def run():
     # ---------------------------------------------------------------
     section("Cashier — quick-tap grouping")
     data = client.get("/api/products/quick-taps").get_json()
-    groups = {g["label"]: [p["name"] for p in g["products"]] for g in data["groups"]}
+    groups = {g["name"]: [p["name"] for p in g["products"]] for g in data["groups"]}
     check("Rice group has both rice varieties", set(groups.get("Rice", [])) == {"Basmati Rice", "Mansuli Rice"})
     check("Dal group has the dal", groups.get("Dal") == ["Musuro Dal"])
     check("Sugar and Flour present", groups.get("Sugar") == ["Sugar"] and groups.get("Flour") == ["Flour"])
-    check("LPG returned separately", [p["name"] for p in data["lpg"]] == ["LPG Refill"])
+    check("LPG is its own group", groups.get("LPG") == ["LPG Refill"])
+    check("groups carry a type flag", all("is_weighed" in g for g in data["groups"]))
 
     # ---------------------------------------------------------------
     section("Cashier — Quick Add (fixed price)")
@@ -145,7 +146,7 @@ def run():
     prod = r.get_json()
     check("weighed quick-add is weighed/kg/group", prod["is_weighed"] == 1 and prod["unit"] == "kg" and prod["weighed_group"] == "Rice")
     data = client.get("/api/products/quick-taps").get_json()
-    rice = next(g["products"] for g in data["groups"] if g["label"] == "Rice")
+    rice = next(g["products"] for g in data["groups"] if g["name"] == "Rice")
     check("new variety appears under Rice button", any(p["name"] == "Jeera Masino Rice" for p in rice))
 
     section("Cashier — Quick Add validation")
@@ -288,7 +289,9 @@ def run():
     br = _product_by_name("Basmati Rice")
     check("admin form stores name_ne", br is not None and br["name_ne"] == "बासमती चामल")
     check("name_ne comes back on the quick-taps API",
-          any(p.get("name_ne") == "बासमती चामल" for p in client.get("/api/products/quick-taps").get_json()["groups"][0]["products"]))
+          any(p.get("name_ne") == "बासमती चामल"
+              for g in client.get("/api/products/quick-taps").get_json()["groups"]
+              for p in g["products"]))
     check("name_ne comes back on search", any(p.get("name_ne") == "बासमती चामल" for p in client.get("/api/products/search?q=basmati").get_json()))
     # a product with no Nepali name stores NULL, and the canonical English name is unaffected
     client.post("/admin/products/new", data={
@@ -332,7 +335,7 @@ def run():
     salt = _product_by_name("Salt")
     check("keyword-less weighed item auto-grouped to Other", salt["weighed_group"] == "Other")
     data = client.get("/api/products/quick-taps").get_json()
-    other = next(g["products"] for g in data["groups"] if g["label"] == "Other")
+    other = next(g["products"] for g in data["groups"] if g["name"] == "Other")
     check("Salt shows under Other group", any(p["name"] == "Salt" for p in other))
 
     # ---------------------------------------------------------------
@@ -426,6 +429,46 @@ def run():
                              data={"file": (io.BytesIO(b"a,b,c\n1,2,3\n"), "x.csv")},
                              content_type="multipart/form-data")
     check("wrong header rejected", b"CSV header must be" in bad_header.data)
+
+    # ---------------------------------------------------------------
+    section("Groups — user-defined cashier buttons")
+    check("default groups seeded",
+          all(n in db.group_names() for n in ["Rice", "Dal", "Sugar", "Flour", "Other", "LPG"]))
+    # Create a new fixed-price group via admin, then file a product under it
+    client.post("/admin/groups/new", data={"name": "Oil", "name_ne": "तेल", "sort_order": "35"})
+    oil = db.get_group_by_name("Oil")
+    check("admin created a fixed-price group", oil is not None and oil["is_weighed"] == 0)
+    client.post("/admin/products/new", data={
+        "name": "Sunflower Oil 1L", "category": "grocery", "price": "220", "unit": "bottle",
+        "weighed_group": "Oil"})
+    check("product filed under the new group", _product_by_name("Sunflower Oil 1L")["weighed_group"] == "Oil")
+    data = client.get("/api/products/quick-taps").get_json()
+    oilg = next((g for g in data["groups"] if g["name"] == "Oil"), None)
+    check("new fixed group shows on the cashier", oilg is not None and oilg["is_weighed"] == 0
+          and any(p["name"] == "Sunflower Oil 1L" for p in oilg["products"]))
+    # Rename the group -> its products move with it
+    client.post(f"/admin/groups/{oil['id']}/edit",
+                data={"name": "Cooking Oil", "name_ne": "तेल", "sort_order": "35"})
+    check("rename carries the products across", _product_by_name("Sunflower Oil 1L")["weighed_group"] == "Cooking Oil")
+    # Hide -> gone from cashier; Delete -> product kept but un-grouped
+    client.post(f"/admin/groups/{oil['id']}/active", data={"active": "0"})
+    data = client.get("/api/products/quick-taps").get_json()
+    check("hidden group not on cashier", not any(g["name"] == "Cooking Oil" for g in data["groups"]))
+    client.post(f"/admin/groups/{oil['id']}/delete", data={})
+    check("group deleted", db.get_group(oil["id"]) is None)
+    check("deleted group's product kept, un-grouped",
+          _product_by_name("Sunflower Oil 1L")["weighed_group"] in (None, ""))
+    # A custom WEIGHED group works too (weight pad path)
+    client.post("/admin/groups/new", data={"name": "Pulses", "is_weighed": "1", "sort_order": "25"})
+    client.post("/admin/products/new", data={
+        "name": "Chana", "category": "weighed", "price": "160", "unit": "kg",
+        "is_weighed": "1", "weighed_group": "Pulses"})
+    data = client.get("/api/products/quick-taps").get_json()
+    pulses = next((g for g in data["groups"] if g["name"] == "Pulses"), None)
+    check("custom weighed group works",
+          pulses is not None and pulses["is_weighed"] == 1 and any(p["name"] == "Chana" for p in pulses["products"]))
+    check("duplicate group name rejected",
+          b"already exists" in client.post("/admin/groups/new", data={"name": "Pulses"}).data)
 
     # ---------------------------------------------------------------
     section("Admin — product photos")
