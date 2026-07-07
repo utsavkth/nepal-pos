@@ -73,7 +73,7 @@ const I18N = {
     couldNotSaveSale: "Could not save sale — try again",
     couldNotLoadQuick: "Could not load quick buttons",
     langToggle: "नेपाली",
-    groupRice: "Rice", groupDal: "Dal", groupSugar: "Sugar", groupFlour: "Flour", groupOther: "Other",
+    groupRice: "Rice", groupDal: "Dal", groupSugar: "Sugar", groupFlour: "Flour", groupOther: "Other", groupLPG: "LPG",
     catGrocery: "Grocery", catCosmetics: "Cosmetics", catStationery: "Stationery", catLpg: "LPG", catOther: "Other",
   },
   ne: {
@@ -144,7 +144,7 @@ const I18N = {
     couldNotSaveSale: "बिक्री सुरक्षित भएन — फेरि प्रयास गर्नुहोस्",
     couldNotLoadQuick: "छिटो बटनहरू लोड भएनन्",
     langToggle: "English",
-    groupRice: "चामल", groupDal: "दाल", groupSugar: "चिनी", groupFlour: "पीठो", groupOther: "अन्य",
+    groupRice: "चामल", groupDal: "दाल", groupSugar: "चिनी", groupFlour: "पीठो", groupOther: "अन्य", groupLPG: "ग्यास",
     catGrocery: "किराना", catCosmetics: "सौन्दर्य सामग्री", catStationery: "स्टेशनरी", catLpg: "ग्यास", catOther: "अन्य",
   },
 };

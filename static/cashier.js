@@ -194,6 +194,21 @@ function renderSearchResults(products) {
 
 /* ---- Quick-tap buttons: weighed-goods category buttons + LPG one-tap ---- */
 
+/* Simple inline SVG icons for the category tiles. Unlike emoji (which didn't
+   render on the shop's devices) these draw identically everywhere. They inherit
+   colour via currentColor, set per tile type in the CSS. */
+const TAP_ICONS = {
+  Rice: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 12h17a8.5 8.5 0 0 1-17 0Z"/><path d="M7 8.6c.4-.8 1.2-1.1 2-.9M11 7.4c.5-.8 1.4-1.1 2.2-.8"/></svg>',
+  Dal: '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><ellipse cx="8.5" cy="10" rx="3.1" ry="2.05"/><ellipse cx="15" cy="9" rx="3.1" ry="2.05"/><ellipse cx="12" cy="15" rx="3.1" ry="2.05"/></svg>',
+  Sugar: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="5.5" y="5.5" width="13" height="13" rx="1.6"/><path d="M5.5 11h13M11 5.5v13"/></svg>',
+  Flour: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 7.5c-1.2 0-2 1-2.4 2.8L4.6 19h14.8l-1-8.7C18 8.5 17.2 7.5 16 7.5Z"/><path d="M8.4 7.5h7.2"/></svg>',
+  Other: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 9.5h15l-1.4 9H5.9Z"/><path d="M8.6 9.5 10.5 4.6M15.4 9.5 13.5 4.6"/></svg>',
+  LPG: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 9c0-2.2 1.8-3.5 4-3.5s4 1.3 4 3.5v8.6a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1Z"/><path d="M10.4 5.4V4h3.2v1.4"/></svg>',
+};
+function tapIcon(label) {
+  return TAP_ICONS[label] || TAP_ICONS.Other;
+}
+
 /* The "media" square on a tile: the product photo when it has one, otherwise a
    white letter badge (first letter, dark-on-white) so every tile looks
    consistent whether or not a photo has been added. Emoji were dropped — they
@@ -249,8 +264,8 @@ async function loadQuickTaps() {
       btn.type = "button";
       btn.className = "tap tap-weighed";
       const media = document.createElement("span");
-      media.className = "tap-media letter";
-      media.textContent = group.label.charAt(0);  // R / D / S / F / O — always renders
+      media.className = "tap-media icon";
+      media.innerHTML = tapIcon(group.label);
       const name = document.createElement("span");
       name.className = "tap-name";
       name.textContent = groupLabel(group.label);
@@ -264,9 +279,27 @@ async function loadQuickTaps() {
       btn.addEventListener("click", () => openVarietyList(group));
       container.appendChild(btn);
     });
-    data.lpg.forEach((p) => {
-      container.appendChild(productTapTile(p, "tap-lpg"));
-    });
+    // LPG/gas: all gas products live under ONE "LPG" button that opens a picker
+    // (like the weighed category buttons), instead of one tile per gas item.
+    if (data.lpg && data.lpg.length) {
+      const lpgGroup = { label: "LPG", products: data.lpg };
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "tap tap-lpg";
+      const media = document.createElement("span");
+      media.className = "tap-media icon";
+      media.innerHTML = tapIcon("LPG");
+      const name = document.createElement("span");
+      name.className = "tap-name";
+      name.textContent = groupLabel("LPG");
+      const sub = document.createElement("span");
+      sub.className = "tap-sub";
+      sub.textContent =
+        data.lpg.length === 1 ? t("oneVariety") : data.lpg.length + " " + t("varieties");
+      btn.append(media, name, sub);
+      btn.addEventListener("click", () => openVarietyList(lpgGroup));
+      container.appendChild(btn);
+    }
     // Pinned products — one-tap fixed-price buttons the shop chose to show here.
     (data.pinned || []).forEach((p) => {
       container.appendChild(productTapTile(p, "tap-pinned"));
@@ -298,13 +331,19 @@ function openVarietyList(group) {
     name.textContent = productDisplayName(p.name, p.name_ne);
     const price = document.createElement("span");
     price.className = "result-price";
-    price.textContent = formatRs(p.price) + t("perKg");
+    price.textContent = formatRs(p.price) + (p.is_weighed ? t("perKg") : "");
     const thumb = productThumb(p, "variety-thumb");
     if (thumb) btn.appendChild(thumb);
     btn.append(name, price);
     btn.addEventListener("click", () => {
       varietyModal.hidden = true;
-      openWeightPad(p);
+      if (p.is_weighed) {
+        openWeightPad(p);
+      } else {
+        // Fixed-price item (e.g. a gas cylinder): straight onto the bill.
+        addToBill(p, 1);
+        showToast(productDisplayName(p.name, p.name_ne) + t("added"));
+      }
     });
     li.appendChild(btn);
     list.appendChild(li);
