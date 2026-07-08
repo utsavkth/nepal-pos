@@ -37,7 +37,10 @@
 
   <section class="bill">
     <div class="bill-title">
-      <span data-i18n="bill">Bill</span>
+      <span class="bill-title-left">
+        <span data-i18n="bill">Current Sale</span>
+        <span id="bill-count" class="bill-count" hidden></span>
+      </span>
       <button id="clear-bill-btn" class="btn-clear-bill" type="button" disabled data-i18n="clear">Clear</button>
     </div>
     <ul id="bill-lines" class="bill-lines"></ul>

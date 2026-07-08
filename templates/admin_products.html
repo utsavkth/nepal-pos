@@ -26,21 +26,27 @@
 <table>
   <thead>
     <tr>
-      <th>ID</th><th>Name</th><th>Barcode</th><th>Category</th>
+      <th></th><th>Name</th><th>Barcode</th><th>Category</th>
       <th class="num">Price</th><th>Unit</th><th>Weighed</th><th>Status</th><th></th>
     </tr>
   </thead>
   <tbody>
     {% for p in products %}
     <tr class="{{ 'inactive' if not p.active }}" data-search="{{ (p.name ~ ' ' ~ (p.barcode or '')) | lower }}">
-      <td>{{ p.id }}</td>
-      <td>{{ p.name }}</td>
+      <td class="thumb-cell">
+        {% if p.image_path %}
+          <img class="table-thumb" src="{{ url_for('product_image', filename=p.image_path) }}" alt="">
+        {% else %}
+          <span class="table-thumb letter">{{ p.name[:1] | upper }}</span>
+        {% endif %}
+      </td>
+      <td><strong>{{ p.name }}</strong></td>
       <td>{{ p.barcode or "—" }}</td>
-      <td>{{ p.category }}</td>
+      <td><span class="chip chip-{{ p.category }}">{{ p.category }}</span></td>
       <td class="num">{{ p.price | rs }}</td>
       <td>{{ p.unit }}</td>
       <td>{{ "yes" if p.is_weighed else "no" }}</td>
-      <td>{{ "active" if p.active else "inactive" }}</td>
+      <td><span class="chip {{ 'chip-active-state' if p.active else 'chip-inactive-state' }}">{{ "active" if p.active else "inactive" }}</span></td>
       <td class="actions">
         <a class="button small" href="{{ url_for('admin_product_edit', product_id=p.id) }}">Edit</a>
         <form method="post" action="{{ url_for('admin_product_active', product_id=p.id, q=query, category=category) }}">

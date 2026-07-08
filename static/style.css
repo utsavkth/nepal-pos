@@ -7,10 +7,14 @@
 :root {
   --panel: #ffffff;
   --ink: #0f172a;          /* slate-900 */
+  --header: #0f172a;       /* dark app header (redesign) */
   --muted: #64748b;        /* slate-500 */
   --accent: #2563eb;       /* blue-600 */
   --accent-dark: #1d4ed8;  /* blue-700 */
   --accent-soft: #eff6ff;  /* blue-50 */
+  --brand: #16a34a;        /* green-600 — primary action colour (redesign) */
+  --brand-dark: #15803d;   /* green-700 */
+  --brand-soft: #f0fdf4;   /* green-50 */
   --green: #059669;        /* emerald-600 */
   --green-dark: #047857;   /* emerald-700 */
   --green-soft: #ecfdf5;   /* emerald-50 */
@@ -30,8 +34,7 @@
 html, body {
   height: 100%;
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  background: linear-gradient(180deg, #f1f5f9 0%, #e6ecf4 100%);
-  background-attachment: fixed;
+  background: #f4f6f8;
   color: var(--ink);
   font-size: 18px;
   -webkit-font-smoothing: antialiased;
@@ -62,28 +65,43 @@ html, body {
   justify-content: space-between;
   gap: 12px;
   padding: 12px 16px;
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  box-shadow: var(--shadow-sm);
+  background: var(--header);
+  border: none;
+  border-radius: 14px;
+  box-shadow: var(--shadow-md);
 }
 .app-header-main { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   font-weight: 800;
-  font-size: 1.2rem;
-  color: var(--ink);
+  font-size: 1.15rem;
+  color: #fff;
   letter-spacing: -0.01em;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* Green "K" logo block — drawn in CSS (emoji are unreliable on the shop devices). */
 .brand::before {
-  content: "🛒 ";
+  content: "K";
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: var(--brand);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.05rem;
+  font-weight: 800;
 }
 .header-datetime {
   font-size: 0.85rem;
   font-weight: 600;
-  color: var(--muted);
+  color: #94a3b8;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -95,20 +113,19 @@ html, body {
   gap: 6px;
   min-height: 40px;
   padding: 0 16px;
-  border: 1px solid var(--border);
+  border: 1px solid #334155;
   border-radius: 999px;
-  background: var(--panel);
-  box-shadow: var(--shadow-sm);
-  color: var(--accent);
+  background: transparent;
+  color: #e2e8f0;
   font-weight: 700;
   font-size: 0.95rem;
   text-decoration: none;
   cursor: pointer;
   font-family: inherit;
-  transition: background .15s, box-shadow .15s;
+  transition: background .15s;
 }
-.admin-link:hover, .lang-toggle:hover { background: var(--accent-soft); }
-.admin-link:active, .lang-toggle:active { background: #dbeafe; }
+.admin-link:hover, .lang-toggle:hover { background: #1e293b; }
+.admin-link:active, .lang-toggle:active { background: #334155; }
 
 .top-row {
   display: flex;
@@ -132,7 +149,7 @@ html, body {
 .btn:disabled { opacity: 0.5; box-shadow: none; cursor: default; transform: none; filter: none; }
 
 .btn-scan {
-  background: linear-gradient(180deg, #3b82f6, var(--accent-dark));
+  background: linear-gradient(180deg, #22c55e, var(--brand-dark));
   flex-shrink: 0;
 }
 
@@ -149,8 +166,8 @@ html, body {
 }
 #search-input:focus {
   outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(37,99,235,.22);
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px rgba(22,163,74,.18);
 }
 
 .search-results {
@@ -176,7 +193,7 @@ html, body {
 .search-results li:last-child { border-bottom: none; }
 .search-results li:hover { background: #f8fafc; }
 .search-results li:active { background: var(--accent-soft); }
-.search-results .result-price { font-weight: 700; white-space: nowrap; color: var(--muted); margin-left: auto; }
+.search-results .result-price { font-weight: 700; white-space: nowrap; color: var(--brand); margin-left: auto; }
 /* Optional product photo (margin-left:auto on the price keeps it right-aligned). */
 .result-thumb {
   width: 44px; height: 44px; flex-shrink: 0;
@@ -184,7 +201,7 @@ html, body {
 }
 .search-results .no-results { color: var(--muted); cursor: default; }
 /* "Not found — tap to add" is an action, so make it look tappable. */
-.search-results .add-not-found { color: var(--accent); font-weight: 700; cursor: pointer; }
+.search-results .add-not-found { color: var(--brand); font-weight: 700; cursor: pointer; }
 .search-results .add-not-found::before { content: "+ "; }
 
 .quick-taps {
@@ -208,11 +225,13 @@ html, body {
   box-shadow: var(--shadow-md);
   transition: transform .06s ease, filter .15s ease, box-shadow .15s ease;
 }
-.quick-taps .tap:hover { filter: brightness(1.05); box-shadow: var(--shadow-lg); }
+.quick-taps .tap:hover { filter: brightness(1.04); box-shadow: var(--shadow-lg); transform: translateY(-1px); }
 .quick-taps .tap:active { transform: translateY(1px) scale(0.99); filter: brightness(0.93); }
-.quick-taps .tap-weighed { background: linear-gradient(155deg, #10b981, var(--green-dark)); }
+/* Type-colour coding stays (weighed=green, LPG=orange, pinned=indigo — decision 17),
+   tuned to the redesign palette. */
+.quick-taps .tap-weighed { background: linear-gradient(155deg, #22c55e, var(--brand-dark)); }
 .quick-taps .tap-lpg { background: linear-gradient(155deg, #fb923c, var(--amber-dark)); }
-.quick-taps .tap-pinned { background: linear-gradient(155deg, #818cf8, #4338ca); }
+.quick-taps .tap-pinned { background: linear-gradient(155deg, #6366f1, #4338ca); }
 /* Media square on each tile: an emoji icon (weighed category), a product photo,
    or a letter fallback — so tiles look consistent with or without a photo. */
 .tap-media {
@@ -234,7 +253,7 @@ html, body {
 /* Category tiles carry a white icon badge; the glyph takes the tile's colour. */
 .tap-media.icon { background: #fff; border-color: rgba(255,255,255,.85); }
 .tap-media svg { width: 30px; height: 30px; display: block; }
-.tap-weighed .tap-media.icon { color: #047857; }
+.tap-weighed .tap-media.icon { color: var(--brand-dark); }
 .tap-lpg .tap-media.icon { color: #b45309; }
 .tap-name {
   font-size: 1.05rem; font-weight: 800; line-height: 1.15; max-width: 100%;
@@ -244,12 +263,12 @@ html, body {
 
 .btn-quick-add {
   background: var(--panel);
-  color: var(--accent);
-  border: 2px dashed #bfdbfe;
+  color: var(--muted);
+  border: 2px dashed #cbd5e1;
   font-weight: 700;
   box-shadow: none;
 }
-.btn-quick-add:hover { background: var(--accent-soft); filter: none; }
+.btn-quick-add:hover { background: #f8fafc; color: var(--ink); filter: none; }
 
 /* ---- Bill column ---- */
 
@@ -270,14 +289,22 @@ html, body {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  padding: 12px 18px;
-  font-size: 0.85rem;
+  padding: 14px 18px;
+  font-size: 1rem;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--muted);
+  color: var(--ink);
   border-bottom: 1px solid var(--border);
-  background: #fbfcfe;
+  background: var(--panel);
+}
+.bill-title-left { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.bill-count {
+  background: var(--brand-soft);
+  color: var(--brand);
+  font-weight: 700;
+  font-size: 0.75rem;
+  padding: 3px 9px;
+  border-radius: 999px;
+  white-space: nowrap;
 }
 .btn-clear-bill {
   min-height: 36px;
@@ -314,20 +341,41 @@ html, body {
 .bill-line-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bill-line-detail { font-size: 0.85rem; color: var(--muted); }
 .bill-line-total { font-weight: 700; white-space: nowrap; }
+.bill-line-thumb {
+  width: 42px; height: 42px; flex-shrink: 0;
+  object-fit: cover; border-radius: 9px; background: #f1f5f9;
+}
+/* Quantity stepper on piece lines (redesign): − / qty / + */
+.bill-line-stepper { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+.bill-step {
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--panel);
+  color: #475569;
+  font-size: 1.15rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background .12s;
+}
+.bill-step:hover { background: #f8fafc; }
+.bill-step:active { background: #eef2f7; }
+.bill-step-qty { min-width: 26px; text-align: center; font-weight: 800; font-size: 1rem; }
 .bill-line-remove {
   width: 44px;
   height: 44px;
   flex-shrink: 0;
   border: none;
   border-radius: var(--radius-sm);
-  background: var(--red-soft);
-  color: var(--red);
-  font-size: 1.3rem;
+  background: transparent;
+  color: #cbd5e1;
+  font-size: 1.35rem;
   font-weight: 800;
   cursor: pointer;
-  transition: background .12s;
+  transition: background .12s, color .12s;
 }
-.bill-line-remove:hover { background: #fee2e2; }
+.bill-line-remove:hover { background: var(--red-soft); color: var(--red); }
 
 .bill-footer {
   border-top: 1px solid var(--border);
@@ -346,9 +394,10 @@ html, body {
 }
 .bill-total-row strong { font-size: 1.9rem; color: var(--ink); letter-spacing: -0.02em; }
 .btn-new-sale {
-  background: linear-gradient(180deg, #10b981, var(--green-dark));
+  background: linear-gradient(180deg, #22c55e, var(--brand-dark));
   font-size: 1.3rem;
   min-height: 66px;
+  box-shadow: 0 4px 12px rgba(22,163,74,.25);
 }
 
 /* ---- Modals ---- */
@@ -398,7 +447,7 @@ html, body {
   border-radius: var(--radius);
   padding: 12px 14px;
 }
-.btn-ok { background: linear-gradient(180deg, #10b981, var(--green-dark)); }
+.btn-ok { background: linear-gradient(180deg, #22c55e, var(--brand-dark)); }
 
 /* Weight pad */
 .weight-display {
@@ -469,13 +518,13 @@ html, body {
   flex-shrink: 0;
   border: none;
   border-radius: var(--radius-sm);
-  background: var(--accent-soft);
-  color: var(--accent);
+  background: var(--brand-soft);
+  color: var(--brand);
   font-size: 1.15rem;
   cursor: pointer;
   transition: background .12s;
 }
-.bill-line-edit:hover { background: #dbeafe; }
+.bill-line-edit:hover { background: #dcfce7; }
 
 /* Quick add */
 .field { display: flex; flex-direction: column; gap: 6px; font-weight: 600; }
@@ -489,8 +538,8 @@ html, body {
 }
 .field input:focus, .field select:focus {
   outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(37,99,235,.22);
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px rgba(22,163,74,.18);
 }
 .field select {
   min-height: var(--touch);
@@ -503,7 +552,7 @@ html, body {
 .field-disabled { opacity: 0.45; }
 .field-disabled select { background: #eef2f7; cursor: not-allowed; }
 .field-checkbox { flex-direction: row; align-items: center; gap: 12px; min-height: 44px; }
-.field-checkbox input { width: 28px; height: 28px; accent-color: var(--accent); }
+.field-checkbox input { width: 28px; height: 28px; accent-color: var(--brand); }
 .barcode-note {
   font-size: 0.9rem;
   color: #92400e;
@@ -561,8 +610,8 @@ html, body {
 }
 .scanner-manual-row input:focus {
   outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(37,99,235,.22);
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px rgba(22,163,74,.18);
 }
 .scanner-manual-row .btn { flex-shrink: 0; }
 
@@ -607,6 +656,14 @@ html, body {
 
   .bill { flex: none; border-radius: var(--radius) var(--radius) 0 0; }
   .bill-lines { max-height: 40dvh; }
+
+  /* Keep bill lines from overflowing the narrow iPhone screens: drop the
+     thumbnail (the name identifies the line) and tighten the controls. */
+  .bill-line-thumb { display: none; }
+  .bill-step { width: 38px; height: 38px; }
+  .bill-step-qty { min-width: 20px; }
+  .bill-line-edit, .bill-line-remove { width: 40px; height: 40px; }
+  .bill-lines li { gap: 6px; padding: 12px 10px; }
 
   .bill-footer {
     position: fixed;

@@ -52,6 +52,9 @@ function renderBill() {
   bill.forEach((line, idx) => {
     const li = document.createElement("li");
 
+    const thumb = productThumb(line, "bill-line-thumb");
+    if (thumb) li.appendChild(thumb);
+
     const info = document.createElement("div");
     info.className = "bill-line-info";
     const name = document.createElement("div");
@@ -60,15 +63,51 @@ function renderBill() {
     const detail = document.createElement("div");
     detail.className = "bill-line-detail";
     const per = line.is_weighed ? perUnit(line.unit) : "";
+    // Weighed lines show the measured quantity; piece lines show the unit price
+    // (their quantity lives in the stepper next to the line).
     let detailText = line.is_weighed
       ? `${line.quantity} ${unitName(line.unit)} × ${formatRs(line.unit_price)}${per}`
-      : `${line.quantity} × ${formatRs(line.unit_price)}`;
+      : `${formatRs(line.unit_price)} ${t("each")}`;
     if (line.unit_price !== line.original_price) {
       detailText += ` (${t("was")}${formatRs(line.original_price)}${per})`;
       detail.classList.add("overridden");
     }
     detail.textContent = detailText;
     info.append(name, detail);
+    li.append(info);
+
+    // Quantity stepper for piece lines: − removes one (or the line at 1), + adds one.
+    if (!line.is_weighed) {
+      const stepper = document.createElement("div");
+      stepper.className = "bill-line-stepper";
+      const dec = document.createElement("button");
+      dec.type = "button";
+      dec.className = "bill-step";
+      dec.setAttribute("aria-label", "One less " + line.product_name);
+      dec.textContent = "−";
+      dec.addEventListener("click", () => {
+        if (line.quantity <= 1) {
+          bill.splice(idx, 1);
+        } else {
+          line.quantity -= 1;
+        }
+        renderBill();
+      });
+      const qty = document.createElement("span");
+      qty.className = "bill-step-qty";
+      qty.textContent = line.quantity;
+      const inc = document.createElement("button");
+      inc.type = "button";
+      inc.className = "bill-step";
+      inc.setAttribute("aria-label", "One more " + line.product_name);
+      inc.textContent = "+";
+      inc.addEventListener("click", () => {
+        line.quantity += 1;
+        renderBill();
+      });
+      stepper.append(dec, qty, inc);
+      li.append(stepper);
+    }
 
     const total = document.createElement("span");
     total.className = "bill-line-total";
@@ -91,13 +130,21 @@ function renderBill() {
       renderBill();
     });
 
-    li.append(info, total, edit, remove);
+    li.append(total, edit, remove);
     list.appendChild(li);
   });
 
   const total = bill.reduce((sum, l) => sum + lineTotal(l), 0);
   document.getElementById("bill-total").textContent = formatRs(total);
-  document.getElementById("new-sale-btn").disabled = bill.length === 0;
+  // Item count badge ("3 items") — weighed lines count once each.
+  const count = bill.reduce((n, l) => n + (l.is_weighed ? 1 : l.quantity), 0);
+  const badge = document.getElementById("bill-count");
+  badge.hidden = count === 0;
+  badge.textContent = count + " " + t(count === 1 ? "item" : "items");
+  // The NEW SALE button carries the total once there is one (design pattern).
+  const newSaleBtn = document.getElementById("new-sale-btn");
+  newSaleBtn.textContent = t("newSale") + (total > 0 ? " · " + formatRs(total) : "");
+  newSaleBtn.disabled = bill.length === 0;
   document.getElementById("clear-bill-btn").disabled = bill.length === 0;
 }
 
@@ -128,6 +175,7 @@ function addToBill(product, quantity) {
     original_price: product.price,
     is_weighed: !!product.is_weighed,
     unit: product.unit,
+    image_path: product.image_path || null, // bill-line thumbnail
   });
   renderBill();
 }

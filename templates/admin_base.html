@@ -7,26 +7,33 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='admin.css') }}">
 </head>
 <body>
-<header class="admin-header">
-  <span class="admin-brand">Khatiwada Store Admin</span>
-  <nav>
-    <a href="{{ url_for('admin_products') }}">Products</a>
-    <a href="{{ url_for('admin_groups') }}">Groups</a>
-    <a href="{{ url_for('admin_duplicates') }}">Duplicates</a>
-    <a href="{{ url_for('admin_reports') }}">Reports</a>
-    <a href="{{ url_for('admin_sales_export') }}">Export sales CSV</a>
-    <a href="{{ url_for('admin_import') }}">Import products</a>
-    <a href="{{ url_for('cashier') }}">Cashier screen</a>
-    <a href="{{ url_for('admin_change_password') }}">Change password</a>
-    <a href="{{ url_for('admin_logout') }}">Log out</a>
-  </nav>
-</header>
+{% set ep = request.endpoint or "" %}
+<div class="admin-shell">
+<aside class="admin-sidebar">
+  <div class="admin-brand"><span class="brand-logo">K</span><span class="brand-name">Khatiwada Store</span></div>
+  <a class="side-link side-back" href="{{ url_for('cashier') }}">← Cashier screen</a>
+
+  <div class="side-section">Catalog</div>
+  <a class="side-link {{ 'active' if ep.startswith('admin_product') }}" href="{{ url_for('admin_products') }}">Products</a>
+  <a class="side-link {{ 'active' if ep.startswith('admin_group') }}" href="{{ url_for('admin_groups') }}">Groups</a>
+  <a class="side-link {{ 'active' if ep.startswith('admin_duplicates') }}" href="{{ url_for('admin_duplicates') }}">Duplicates</a>
+
+  <div class="side-section">Reports &amp; data</div>
+  <a class="side-link {{ 'active' if ep == 'admin_reports' }}" href="{{ url_for('admin_reports') }}">Reports</a>
+  <a class="side-link" href="{{ url_for('admin_sales_export') }}">Export sales CSV</a>
+  <a class="side-link {{ 'active' if ep == 'admin_import' }}" href="{{ url_for('admin_import') }}">Import products</a>
+
+  <div class="side-section">Account</div>
+  <a class="side-link {{ 'active' if ep == 'admin_change_password' }}" href="{{ url_for('admin_change_password') }}">Change password</a>
+  <a class="side-link" href="{{ url_for('admin_logout') }}">Log out</a>
+</aside>
 <main class="admin-main">
   {% with messages = get_flashed_messages() %}
     {% for msg in messages %}<p class="flash">{{ msg }}</p>{% endfor %}
   {% endwith %}
   {% block content %}{% endblock %}
 </main>
+</div>
 {% block scripts %}{% endblock %}
 </body>
 </html>
