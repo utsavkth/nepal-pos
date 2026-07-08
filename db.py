@@ -82,7 +82,7 @@ def init_store_db():
             category TEXT NOT NULL,
             price REAL NOT NULL,
             is_weighed BOOLEAN NOT NULL DEFAULT 0,
-            unit TEXT NOT NULL CHECK (unit IN ('kg', 'piece', 'packet', 'bottle')),
+            unit TEXT NOT NULL,
             active BOOLEAN NOT NULL DEFAULT 1,
             weighed_group TEXT,
             name_ne TEXT,
@@ -142,6 +142,44 @@ def init_store_db():
     # served via the /media/<filename> route. Keeps the database small and fast.
     if "image_path" not in columns:
         conn.execute("ALTER TABLE products ADD COLUMN image_path TEXT")
+    # Migration: drop the CHECK pinning `unit` to a fixed list — the allowed
+    # units live in app code (UNITS in app.py) now, same approach as `category`
+    # above, so adding a unit (litre was the first) is a code change only.
+    # Runs after the column migrations above, so every column exists here.
+    table_sql = conn.execute(
+        "SELECT sql FROM sqlite_master WHERE type='table' AND name='products'"
+    ).fetchone()[0]
+    if "CHECK (unit IN" in table_sql:
+        conn.execute(
+            """
+            CREATE TABLE products_unit_new (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                barcode TEXT,
+                name TEXT NOT NULL,
+                category TEXT NOT NULL,
+                price REAL NOT NULL,
+                is_weighed BOOLEAN NOT NULL DEFAULT 0,
+                unit TEXT NOT NULL,
+                active BOOLEAN NOT NULL DEFAULT 1,
+                weighed_group TEXT,
+                name_ne TEXT,
+                pinned INTEGER NOT NULL DEFAULT 0,
+                image_path TEXT
+            )
+            """
+        )
+        conn.execute(
+            """
+            INSERT INTO products_unit_new
+                (id, barcode, name, category, price, is_weighed, unit, active,
+                 weighed_group, name_ne, pinned, image_path)
+            SELECT id, barcode, name, category, price, is_weighed, unit, active,
+                   weighed_group, name_ne, pinned, image_path
+            FROM products
+            """
+        )
+        conn.execute("DROP TABLE products")
+        conn.execute("ALTER TABLE products_unit_new RENAME TO products")
     # Backfill: classify weighed products that have no explicit group yet.
     for row in conn.execute(
         "SELECT id, name FROM products WHERE is_weighed = 1 AND weighed_group IS NULL"

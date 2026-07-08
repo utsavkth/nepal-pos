@@ -57,7 +57,7 @@
   <div class="modal-box">
     <h3 id="weight-title">Rice</h3>
     <div class="weight-display">
-      <span id="weight-value">0</span> <span data-i18n="kg">kg</span>
+      <span id="weight-value">0</span> <span id="weight-unit">kg</span>
       <span id="weight-line-total" class="weight-line-total">Rs. 0.00</span>
     </div>
     <div class="numpad">
@@ -129,7 +129,14 @@
     </label>
     <label class="field field-checkbox">
       <input id="quick-add-weighed" type="checkbox">
-      <span data-i18n="soldByWeight">Sold by weight (per kg)</span>
+      <span data-i18n="soldByWeight">Sold loose — weighed or measured</span>
+    </label>
+    <label class="field" id="quick-add-unit-field">
+      <span data-i18n="measuredIn">Measured in</span>
+      <select id="quick-add-unit" disabled>
+        <option value="kg" data-i18n="kg">kg</option>
+        <option value="litre" data-i18n="litre">litre</option>
+      </select>
     </label>
     <label class="field" id="quick-add-group-field">
       <span data-i18n="weighedCategory">Weighed category</span>

@@ -39,7 +39,9 @@ app.config["MAX_CONTENT_LENGTH"] = 12 * 1024 * 1024  # 12 MB
 IMAGE_MAX_PX = 400  # thumbnails; keeps the cashier fast over Tailscale
 
 CATEGORIES = ["grocery", "weighed", "lpg", "stationery", "cosmetics", "other"]
-UNITS = ["kg", "piece", "packet", "bottle"]
+UNITS = ["kg", "litre", "piece", "packet", "bottle"]
+# Units a measured (is_weighed) product can use — drives the quantity pad label.
+MEASURE_UNITS = ["kg", "litre"]
 # Categories offered for a fixed-price Quick Add (weighed items are categorised
 # by the weighed-group picker instead). Extend CATEGORIES / this list to add more.
 QUICK_ADD_CATEGORIES = ["grocery", "cosmetics", "stationery", "lpg", "other"]
@@ -167,13 +169,16 @@ def api_quick_add():
         weighed_names = [g["name"] for g in db.get_groups(active_only=True) if g["is_weighed"]]
         if weighed_group not in weighed_names:
             return jsonify({"error": "invalid_weighed_group"}), 400
+        unit = data.get("unit") or "kg"
+        if unit not in MEASURE_UNITS:
+            return jsonify({"error": "invalid_unit"}), 400
         product = db.add_product(
             name=name,
-            price=price,  # per kg
+            price=price,  # per kg or per litre
             barcode=barcode,
             category="weighed",
             is_weighed=1,
-            unit="kg",
+            unit=unit,
             weighed_group=weighed_group,
         )
     else:

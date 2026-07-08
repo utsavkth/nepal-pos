@@ -471,6 +471,95 @@ def run():
           b"already exists" in client.post("/admin/groups/new", data={"name": "Pulses"}).data)
 
     # ---------------------------------------------------------------
+    section("Measured by litre — loose liquids (oil etc.)")
+    # Quick Add a measured litre product into a weighed-type group
+    r = client.post("/api/products/quick-add", json={
+        "name": "Loose Mustard Oil", "price": 265, "is_weighed": True,
+        "weighed_group": "Other", "unit": "litre"})
+    check("litre quick-add returns 201", r.status_code == 201)
+    prod = r.get_json()
+    check("litre quick-add is measured/litre/group",
+          prod["is_weighed"] == 1 and prod["unit"] == "litre" and prod["weighed_group"] == "Other")
+    check("litre product appears under its group button",
+          any(p["name"] == "Loose Mustard Oil"
+              for g in client.get("/api/products/quick-taps").get_json()["groups"]
+              if g["name"] == "Other" for p in g["products"]))
+    # unit is validated; omitting it keeps the kg default
+    check("bad measure unit rejected",
+          client.post("/api/products/quick-add", json={
+              "name": "Bad Unit Oil", "price": 10, "is_weighed": True,
+              "weighed_group": "Other", "unit": "gallon"}).status_code == 400)
+    r = client.post("/api/products/quick-add", json={
+        "name": "Default Unit Item", "price": 80, "is_weighed": True, "weighed_group": "Other"})
+    check("measured quick-add without unit defaults to kg", r.get_json()["unit"] == "kg")
+    # admin form: litre is an offered unit and saves on a measured product
+    check("admin form offers the litre unit", b">litre<" in client.get("/admin/products/new").data)
+    client.post("/admin/products/new", data={
+        "name": "Loose Kerosene", "category": "weighed", "price": "150", "unit": "litre",
+        "is_weighed": "1", "weighed_group": "Other"})
+    check("admin add stores a litre product", _product_by_name("Loose Kerosene")["unit"] == "litre")
+    # CSV import accepts litre
+    litre_csv = (
+        "barcode,name,category,price,is_weighed,unit\n"
+        ",Imported Loose Oil,weighed,240,1,litre\n"
+    )
+    client.post("/admin/import",
+                data={"file": (io.BytesIO(litre_csv.encode()), "litre.csv")},
+                content_type="multipart/form-data")
+    imported = _product_by_name("Imported Loose Oil")
+    check("CSV import accepts a litre unit", imported is not None and imported["unit"] == "litre")
+    # a fractional-litre sale computes like any measured sale
+    r = client.post("/api/sales", json={"items": [
+        {"product_name": "Loose Mustard Oil", "quantity": 0.5, "unit_price": 265}]})
+    check("half-litre sale totals correctly", r.status_code == 201 and r.get_json()["total"] == 132.5)
+
+    section("Migration — unit CHECK dropped, data preserved")
+    # Simulate the deployed database, whose products table still has the old
+    # CHECK (unit IN ('kg','piece','packet','bottle')) — init must rebuild it
+    # without the CHECK, keep existing rows/ids, and then accept litre.
+    import sqlite3 as _sqlite3
+    _mig_dir = tempfile.mkdtemp(prefix="nepalpos-mig-")
+    _old_paths = (db.DATA_DIR, db.STORE_DB_PATH, db.SALES_DB_PATH)
+    db.DATA_DIR = _mig_dir
+    db.STORE_DB_PATH = os.path.join(_mig_dir, "store.db")
+    db.SALES_DB_PATH = os.path.join(_mig_dir, "sales.db")
+    try:
+        conn = _sqlite3.connect(db.STORE_DB_PATH)
+        conn.execute("""
+            CREATE TABLE products (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                barcode TEXT,
+                name TEXT NOT NULL,
+                category TEXT NOT NULL,
+                price REAL NOT NULL,
+                is_weighed BOOLEAN NOT NULL DEFAULT 0,
+                unit TEXT NOT NULL CHECK (unit IN ('kg', 'piece', 'packet', 'bottle')),
+                active BOOLEAN NOT NULL DEFAULT 1,
+                weighed_group TEXT,
+                name_ne TEXT,
+                pinned INTEGER NOT NULL DEFAULT 0,
+                image_path TEXT
+            )""")
+        conn.execute(
+            "INSERT INTO products (barcode, name, category, price, is_weighed, unit, active, weighed_group, name_ne, pinned, image_path) "
+            "VALUES ('7770001112223', 'Old Rice', 'weighed', 100.0, 1, 'kg', 1, 'Rice', 'पुरानो चामल', 0, NULL)")
+        conn.commit()
+        conn.close()
+        db.init_store_db()
+        table_sql = _sqlite3.connect(db.STORE_DB_PATH).execute(
+            "SELECT sql FROM sqlite_master WHERE type='table' AND name='products'").fetchone()[0]
+        check("unit CHECK removed by migration", "CHECK (unit IN" not in table_sql)
+        old_row = db.get_product(1)
+        check("existing row survives with id and columns intact",
+              old_row is not None and old_row["name"] == "Old Rice"
+              and old_row["unit"] == "kg" and old_row["name_ne"] == "पुरानो चामल")
+        litre_prod = db.add_product(name="Post-migration Oil", price=200, category="weighed",
+                                    is_weighed=1, unit="litre", weighed_group="Other")
+        check("litre insert accepted after migration", litre_prod["unit"] == "litre")
+    finally:
+        db.DATA_DIR, db.STORE_DB_PATH, db.SALES_DB_PATH = _old_paths
+
+    # ---------------------------------------------------------------
     section("Admin — product photos")
     # Add a product with a photo (oversized image should be resized down).
     r = client.post("/admin/products/new",

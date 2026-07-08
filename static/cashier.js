@@ -11,6 +11,19 @@ function lineTotal(line) {
   return Math.round(line.quantity * line.unit_price * 100) / 100;
 }
 
+/* Measured (is_weighed) products are sold per kg or per litre — the product's
+   `unit` decides every label (pad, price suffixes, bill line). kg is the
+   default for anything older that predates the litre unit. */
+function unitName(unit) {
+  return unit === "litre" ? t("litre") : t("kg");
+}
+function perUnit(unit) {
+  return unit === "litre" ? t("perLitre") : t("perKg");
+}
+function perUnitSuffix(unit) {
+  return unit === "litre" ? t("perLitreSuffix") : t("perKgSuffix");
+}
+
 /* Optional product photo thumbnail. Returns an <img> element when the product
    has an image_path, otherwise null so callers just show text as before. */
 function productThumb(p, className = "thumb") {
@@ -46,9 +59,9 @@ function renderBill() {
     name.textContent = productDisplayName(line.product_name, line.name_ne);
     const detail = document.createElement("div");
     detail.className = "bill-line-detail";
-    const per = line.is_weighed ? t("perKg") : "";
+    const per = line.is_weighed ? perUnit(line.unit) : "";
     let detailText = line.is_weighed
-      ? `${line.quantity} ${t("kg")} × ${formatRs(line.unit_price)}${per}`
+      ? `${line.quantity} ${unitName(line.unit)} × ${formatRs(line.unit_price)}${per}`
       : `${line.quantity} × ${formatRs(line.unit_price)}`;
     if (line.unit_price !== line.original_price) {
       detailText += ` (${t("was")}${formatRs(line.original_price)}${per})`;
@@ -174,7 +187,7 @@ function renderSearchResults(products) {
     name.textContent = productDisplayName(p.name, p.name_ne);
     const price = document.createElement("span");
     price.className = "result-price";
-    price.textContent = formatRs(p.price) + (p.is_weighed ? t("perKg") : "");
+    price.textContent = formatRs(p.price) + (p.is_weighed ? perUnit(p.unit) : "");
     const thumb = productThumb(p, "result-thumb");
     if (thumb) li.appendChild(thumb);
     li.append(name, price);
@@ -317,7 +330,7 @@ function openVarietyList(group) {
     name.textContent = productDisplayName(p.name, p.name_ne);
     const price = document.createElement("span");
     price.className = "result-price";
-    price.textContent = formatRs(p.price) + (p.is_weighed ? t("perKg") : "");
+    price.textContent = formatRs(p.price) + (p.is_weighed ? perUnit(p.unit) : "");
     const thumb = productThumb(p, "variety-thumb");
     if (thumb) btn.appendChild(thumb);
     btn.append(name, price);
@@ -351,7 +364,8 @@ function openWeightPad(product) {
   weightProduct = product;
   weightStr = "";
   document.getElementById("weight-title").textContent =
-    productDisplayName(product.name, product.name_ne) + " — " + formatRs(product.price) + t("perKg");
+    productDisplayName(product.name, product.name_ne) + " — " + formatRs(product.price) + perUnit(product.unit);
+  document.getElementById("weight-unit").textContent = unitName(product.unit);
   updateWeightDisplay();
   weightModal.hidden = false;
 }
@@ -404,14 +418,14 @@ function openPriceOverride(index) {
   priceLineIndex = index;
   priceStr = "";
   const line = bill[index];
-  const per = line.is_weighed ? t("perKg") : "";
+  const per = line.is_weighed ? perUnit(line.unit) : "";
   document.getElementById("price-title").textContent = productDisplayName(line.product_name, line.name_ne);
   document.getElementById("price-current").textContent =
     t("currentPrice") + formatRs(line.unit_price) + per +
     (line.unit_price !== line.original_price
       ? " (" + t("normalPrice") + formatRs(line.original_price) + per + ")"
       : "");
-  document.getElementById("price-unit-suffix").textContent = line.is_weighed ? t("perKgSuffix") : "";
+  document.getElementById("price-unit-suffix").textContent = line.is_weighed ? perUnitSuffix(line.unit) : "";
   updatePriceDisplay();
   priceModal.hidden = false;
 }
@@ -463,6 +477,8 @@ const quickAddCategoryField = document.getElementById("quick-add-category-field"
 const quickAddGroupSelect = document.getElementById("quick-add-group");
 const quickAddCategorySelect = document.getElementById("quick-add-category");
 const quickAddPriceLabel = document.getElementById("quick-add-price-label");
+const quickAddUnitField = document.getElementById("quick-add-unit-field");
+const quickAddUnitSelect = document.getElementById("quick-add-unit");
 
 /* Fill the Quick Add weighed-group dropdown from the active weighed groups, so a
    new variety can be filed under any group the shop has created (not a fixed
@@ -486,10 +502,14 @@ function populateQuickAddGroups(allGroups) {
 function updateQuickAddPickers() {
   const weighed = quickAddWeighed.checked;
   quickAddGroupSelect.disabled = !weighed;
+  quickAddUnitSelect.disabled = !weighed;
   quickAddCategorySelect.disabled = weighed;
   quickAddGroupField.classList.toggle("field-disabled", !weighed);
+  quickAddUnitField.classList.toggle("field-disabled", !weighed);
   quickAddCategoryField.classList.toggle("field-disabled", weighed);
-  quickAddPriceLabel.textContent = weighed ? t("pricePerKg") : t("price");
+  quickAddPriceLabel.textContent = weighed
+    ? (quickAddUnitSelect.value === "litre" ? t("pricePerLitre") : t("pricePerKg"))
+    : t("price");
   // Pinning is for fixed-price items only (weighed items get category buttons).
   const pinnedInput = document.getElementById("quick-add-pinned");
   document.getElementById("quick-add-pinned-field").classList.toggle("field-disabled", weighed);
@@ -498,6 +518,7 @@ function updateQuickAddPickers() {
 }
 
 quickAddWeighed.addEventListener("change", updateQuickAddPickers);
+quickAddUnitSelect.addEventListener("change", updateQuickAddPickers);
 
 function openQuickAdd(barcode = null, prefillName = "") {
   quickAddBarcode = barcode;
@@ -511,6 +532,7 @@ function openQuickAdd(barcode = null, prefillName = "") {
   document.getElementById("quick-add-name").value = prefillName;
   document.getElementById("quick-add-price").value = "";
   quickAddWeighed.checked = false;
+  quickAddUnitSelect.value = "kg";
   if (quickAddGroupSelect.options.length) quickAddGroupSelect.selectedIndex = 0;
   quickAddCategorySelect.value = "grocery";
   document.getElementById("quick-add-pinned").checked = false;
@@ -542,6 +564,7 @@ async function saveQuickAddProduct(force) {
         price,
         barcode: quickAddBarcode,
         is_weighed: quickAddWeighed.checked,
+        unit: quickAddWeighed.checked ? quickAddUnitSelect.value : null,
         weighed_group: quickAddWeighed.checked
           ? document.getElementById("quick-add-group").value
           : null,
@@ -563,7 +586,8 @@ async function saveQuickAddProduct(force) {
     quickAddModal.hidden = true;
     loadQuickTaps(); // a new weighed variety should appear on its category button
     if (product.is_weighed) {
-      showToast(productDisplayName(product.name, product.name_ne) + t("savedEnterWeight"));
+      showToast(productDisplayName(product.name, product.name_ne) +
+        (product.unit === "litre" ? t("savedEnterVolume") : t("savedEnterWeight")));
       openWeightPad(product);
     } else {
       addToBill(product, 1);
