@@ -64,6 +64,7 @@
       <span id="weight-value">0</span> <span id="weight-unit">kg</span>
       <span id="weight-line-total" class="weight-line-total">Rs. 0.00</span>
     </div>
+    <div id="weight-presets" class="weight-presets"></div>
     <div class="numpad">
       <button data-key="7">7</button><button data-key="8">8</button><button data-key="9">9</button>
       <button data-key="4">4</button><button data-key="5">5</button><button data-key="6">6</button>
@@ -110,15 +111,54 @@
   </div>
 </div>
 
-<!-- Confirm sale modal (guards against accidental NEW SALE taps) -->
+<!-- Confirm sale modal (guards against accidental NEW SALE taps).
+     The "Customer paid" change calculator is purely optional — Confirm & save
+     works identically whether or not an amount is picked. -->
 <div id="confirm-modal" class="modal" hidden>
   <div class="modal-box">
     <h3 data-i18n="confirmSaleTitle">Confirm sale</h3>
     <p class="confirm-text"><span data-i18n="confirmSaleText">Confirm this sale?</span><strong id="confirm-amount">Rs. 0.00</strong></p>
+    <div class="paid-section">
+      <span class="paid-label"><span data-i18n="customerPaid">Customer paid</span> <span class="paid-optional" data-i18n="optionalTag">(optional)</span></span>
+      <div class="paid-chips">
+        <button type="button" class="paid-chip" data-paid="500">Rs. 500</button>
+        <button type="button" class="paid-chip" data-paid="1000">Rs. 1000</button>
+        <button type="button" class="paid-chip" id="paid-custom-chip" data-i18n="customAmount">Custom</button>
+      </div>
+      <div id="paid-custom-pad" class="paid-custom" hidden>
+        <div class="paid-custom-value">Rs. <span id="paid-custom-value">0</span></div>
+        <div class="numpad numpad-compact">
+          <button data-key="7">7</button><button data-key="8">8</button><button data-key="9">9</button>
+          <button data-key="4">4</button><button data-key="5">5</button><button data-key="6">6</button>
+          <button data-key="1">1</button><button data-key="2">2</button><button data-key="3">3</button>
+          <button data-key=".">.</button><button data-key="0">0</button><button data-key="del">⌫</button>
+        </div>
+        <button id="paid-custom-set" class="btn btn-ok paid-set" type="button" disabled data-i18n="setAmount">Set amount</button>
+      </div>
+      <div id="change-box" class="change-box" hidden>
+        <span id="change-label" class="change-label">Change</span>
+        <strong id="change-value" class="change-value">Rs. 0.00</strong>
+        <span id="change-note" class="change-note" hidden data-i18n="owedNote">Amount paid is less than the total</span>
+      </div>
+      <button id="paid-clear" class="paid-clear" type="button" hidden data-i18n="clear">Clear</button>
+    </div>
     <div class="modal-actions">
       <button id="confirm-cancel" class="btn btn-cancel" type="button" data-i18n="cancel">Cancel</button>
       <button id="confirm-ok" class="btn btn-ok" type="button" data-i18n="confirmSave">Confirm &amp; save</button>
     </div>
+  </div>
+</div>
+
+<!-- Sale-saved success moment: replaces the old toast for saved sales. Shows a
+     big check + total (+ change if the calculator was used), auto-dismisses. -->
+<div id="success-modal" class="modal success-modal" hidden>
+  <div class="success-box">
+    <span class="success-check">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12.5l5 5 10-11"/></svg>
+    </span>
+    <div class="success-title" data-i18n="saleSavedTitle">Sale saved</div>
+    <div id="success-total" class="success-total">Rs. 0.00</div>
+    <div id="success-change" class="success-change" hidden></div>
   </div>
 </div>
 

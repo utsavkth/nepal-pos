@@ -632,6 +632,174 @@ html, body {
   box-shadow: var(--shadow-lg);
 }
 
+/* Weight-pad preset chips (½/1/2/5 in the product's unit) — one-tap fills the
+   readout; the numpad below still works for odd amounts. */
+.weight-presets {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+.preset-chip {
+  min-height: 44px;
+  border: 1px solid #a7f3d0;
+  border-radius: 999px;
+  background: var(--brand-soft);
+  color: var(--brand-dark);
+  font-size: 0.95rem;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background .1s, transform .05s;
+}
+.preset-chip:hover { background: #dcfce7; }
+.preset-chip:active { transform: translateY(1px); }
+.preset-chip.selected {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #fff;
+}
+
+/* Change calculator on the confirm-sale modal — optional, never gates saving */
+.paid-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 4px 0 2px;
+  border-top: 1px solid #f1f5f9;
+}
+.paid-label {
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+.paid-optional { text-transform: none; font-weight: 600; color: #cbd5e1; }
+.paid-chips {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.paid-chip {
+  min-height: 44px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--ink);
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background .1s, transform .05s;
+}
+.paid-chip:hover { background: #f8fafc; }
+.paid-chip:active { transform: translateY(1px); }
+.paid-chip.selected {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #fff;
+}
+/* display:flex would override the hidden attribute — restate it for these */
+.paid-custom[hidden], .change-box[hidden] { display: none; }
+.paid-custom { display: flex; flex-direction: column; gap: 8px; }
+.paid-custom-value {
+  text-align: center;
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--ink);
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px;
+}
+.numpad-compact { gap: 6px; }
+.numpad-compact button { min-height: 40px; font-size: 1.1rem; }
+.paid-set { min-height: 44px; }
+.change-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  background: var(--brand-soft);
+  border: 1px solid #bbf7d0;
+  color: var(--brand-dark);
+}
+.change-label {
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.change-value { font-size: 2.4rem; font-weight: 800; letter-spacing: -0.02em; }
+.change-note { font-size: 0.8rem; font-weight: 700; }
+.change-box.owed {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #b91c1c;
+}
+.paid-clear {
+  align-self: center;
+  border: none;
+  background: none;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 2px 8px;
+}
+.paid-clear:hover { color: var(--ink); }
+
+/* Sale-saved success moment — near-full-screen, auto-dismisses */
+@keyframes pop-in {
+  from { transform: scale(0.92); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+.success-modal { z-index: 90; }
+.success-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  background: #fff;
+  border-radius: 24px;
+  padding: 44px 60px;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, .3);
+  animation: pop-in .18s ease-out;
+}
+.success-check {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  background: var(--brand-soft);
+  color: var(--brand);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.success-check svg { width: 48px; height: 48px; }
+.success-title { font-size: 1.35rem; font-weight: 800; color: var(--ink); }
+.success-total {
+  font-size: 2.5rem;
+  font-weight: 800;
+  color: var(--ink);
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+.success-change {
+  margin-top: 4px;
+  padding: 10px 22px;
+  border-radius: 999px;
+  background: var(--brand-soft);
+  border: 1px solid #bbf7d0;
+  color: var(--brand-dark);
+  font-size: 1.15rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
 /* ---- Phone layout (iPhone 13: 390pt, 13 Pro Max: 428pt) ---- */
 
 @media (max-width: 700px) {
@@ -675,4 +843,12 @@ html, body {
     box-shadow: 0 -6px 20px rgba(15,23,42,.1);
     padding-bottom: calc(14px + env(safe-area-inset-bottom));
   }
+
+  /* New-feature sizing at phone width: keep chips tappable, scale the big
+     numbers down so the confirm modal and success card fit a 375px screen. */
+  .paid-chip { font-size: 0.9rem; }
+  .change-value { font-size: 2rem; }
+  .success-box { padding: 36px 34px; margin: 0 16px; }
+  .success-total { font-size: 2rem; }
+  .preset-chip { font-size: 0.9rem; }
 }

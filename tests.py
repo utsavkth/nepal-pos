@@ -639,6 +639,15 @@ def run():
         check("version matches the file's content hash", m.group(2) == expected)
 
     # ---------------------------------------------------------------
+    section("Cashier — change calculator / success screen / weight presets markup")
+    check("confirm modal has the optional change calculator",
+          'data-i18n="customerPaid"' in page and 'id="paid-custom-pad"' in page and 'id="change-box"' in page)
+    check("payment quick chips are Rs. 500 / Rs. 1000 / Custom",
+          'data-paid="500"' in page and 'data-paid="1000"' in page and 'id="paid-custom-chip"' in page)
+    check("sale-saved success screen present", 'id="success-modal"' in page and 'data-i18n="saleSavedTitle"' in page)
+    check("weight pad has a preset chip row", 'id="weight-presets"' in page)
+
+    # ---------------------------------------------------------------
     print(f"\n{'='*40}\n{_passed} passed, {_failed} failed\n{'='*40}")
     return 0 if _failed == 0 else 1
 

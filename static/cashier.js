@@ -408,6 +408,34 @@ const weightModal = document.getElementById("weight-modal");
 let weightProduct = null;
 let weightStr = "";
 
+/* Preset chips above the numpad: the common amounts (½/1/2/5 in the product's
+   unit) fill the readout in one tap; the numpad stays available for odd
+   amounts and can still edit after a preset tap. */
+const WEIGHT_PRESETS = [
+  { value: 0.5, str: "0.5", label: "½" },
+  { value: 1, str: "1", label: "1" },
+  { value: 2, str: "2", label: "2" },
+  { value: 5, str: "5", label: "5" },
+];
+
+function renderWeightPresets() {
+  const row = document.getElementById("weight-presets");
+  row.innerHTML = "";
+  const unit = unitName(weightProduct.unit);
+  WEIGHT_PRESETS.forEach((preset) => {
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = "preset-chip";
+    chip.textContent = preset.label + " " + unit;
+    if (parseFloat(weightStr) === preset.value) chip.classList.add("selected");
+    chip.addEventListener("click", () => {
+      weightStr = preset.str;
+      updateWeightDisplay();
+    });
+    row.appendChild(chip);
+  });
+}
+
 function openWeightPad(product) {
   weightProduct = product;
   weightStr = "";
@@ -424,6 +452,7 @@ function updateWeightDisplay() {
   document.getElementById("weight-line-total").textContent =
     formatRs(Math.round(kg * weightProduct.price * 100) / 100);
   document.getElementById("weight-ok").disabled = kg <= 0;
+  renderWeightPresets(); // keep the matching chip highlighted as digits change
 }
 
 document.querySelectorAll("#weight-modal .numpad button").forEach((btn) => {
@@ -702,9 +731,106 @@ document.getElementById("clear-bill-btn").addEventListener("click", () => {
 
 const confirmModal = document.getElementById("confirm-modal");
 
+/* Change calculator on the confirm step. Display-only and completely optional:
+   the picked amount is never sent to the server and never gates Confirm &
+   save — it just shows the change to hand back (or a warning when short). */
+let paidAmount = null; // number, or null when nothing picked
+let paidCustomStr = "";
+
+function resetPaid() {
+  paidAmount = null;
+  paidCustomStr = "";
+  document.getElementById("paid-custom-pad").hidden = true;
+  updatePaidCustomDisplay();
+  renderChangeBox();
+}
+
+function renderChangeBox() {
+  const box = document.getElementById("change-box");
+  const clearBtn = document.getElementById("paid-clear");
+  document.querySelectorAll(".paid-chip").forEach((chip) => {
+    const isCustomChip = chip.id === "paid-custom-chip";
+    const chipValue = isCustomChip ? null : parseFloat(chip.dataset.paid);
+    const customOpen = !document.getElementById("paid-custom-pad").hidden;
+    chip.classList.toggle(
+      "selected",
+      isCustomChip
+        ? customOpen || (paidAmount !== null && ![500, 1000].includes(paidAmount))
+        : paidAmount === chipValue
+    );
+  });
+  if (paidAmount === null) {
+    box.hidden = true;
+    clearBtn.hidden = true;
+    return;
+  }
+  const total = billTotal();
+  const short = paidAmount < total;
+  box.hidden = false;
+  clearBtn.hidden = false;
+  box.classList.toggle("owed", short);
+  document.getElementById("change-label").textContent = short ? t("stillOwed") : t("changeDue");
+  // Never show a negative number — "still owed" flips the sign instead.
+  document.getElementById("change-value").textContent = formatRs(Math.abs(paidAmount - total));
+  document.getElementById("change-note").hidden = !short;
+}
+
+function updatePaidCustomDisplay() {
+  document.getElementById("paid-custom-value").textContent = paidCustomStr || "0";
+  document.getElementById("paid-custom-set").disabled = !(parseFloat(paidCustomStr) > 0);
+}
+
+document.querySelectorAll(".paid-chip[data-paid]").forEach((chip) => {
+  chip.addEventListener("click", () => {
+    const value = parseFloat(chip.dataset.paid);
+    document.getElementById("paid-custom-pad").hidden = true;
+    paidAmount = paidAmount === value ? null : value; // second tap deselects
+    renderChangeBox();
+  });
+});
+
+document.getElementById("paid-custom-chip").addEventListener("click", () => {
+  const pad = document.getElementById("paid-custom-pad");
+  pad.hidden = !pad.hidden;
+  if (!pad.hidden) {
+    paidCustomStr = "";
+    updatePaidCustomDisplay();
+  }
+  renderChangeBox();
+});
+
+document.querySelectorAll("#paid-custom-pad .numpad button").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const key = btn.dataset.key;
+    if (key === "del") {
+      paidCustomStr = paidCustomStr.slice(0, -1);
+    } else if (key === ".") {
+      if (!paidCustomStr.includes(".")) paidCustomStr = (paidCustomStr || "0") + ".";
+    } else {
+      const next = paidCustomStr + key;
+      const parts = next.split(".");
+      if (parts[0].length > 6 || (parts[1] || "").length > 2) return;
+      paidCustomStr = next;
+    }
+    updatePaidCustomDisplay();
+  });
+});
+
+document.getElementById("paid-custom-set").addEventListener("click", () => {
+  const value = parseFloat(paidCustomStr);
+  if (value > 0) {
+    paidAmount = value;
+    document.getElementById("paid-custom-pad").hidden = true;
+    renderChangeBox();
+  }
+});
+
+document.getElementById("paid-clear").addEventListener("click", resetPaid);
+
 document.getElementById("new-sale-btn").addEventListener("click", () => {
   if (bill.length === 0) return;
   document.getElementById("confirm-amount").textContent = formatRs(billTotal());
+  resetPaid(); // the calculator starts blank for every sale
   confirmModal.hidden = false;
 });
 
@@ -713,6 +839,20 @@ document.getElementById("confirm-cancel").addEventListener("click", () => {
 });
 
 document.getElementById("confirm-ok").addEventListener("click", finalizeSale);
+
+/* Sale-saved success moment (replaces the old toast for saved sales): a big
+   check + total the parents can read from across the counter, repeating the
+   change when the calculator was used. Auto-dismisses back to the empty bill. */
+function showSaleSuccess(total, changeText) {
+  const modal = document.getElementById("success-modal");
+  document.getElementById("success-total").textContent = formatRs(total);
+  const changeEl = document.getElementById("success-change");
+  changeEl.hidden = !changeText;
+  changeEl.textContent = changeText || "";
+  modal.hidden = false;
+  clearTimeout(showSaleSuccess._t);
+  showSaleSuccess._t = setTimeout(() => { modal.hidden = true; }, 2000);
+}
 
 async function finalizeSale() {
   if (bill.length === 0) {
@@ -734,10 +874,16 @@ async function finalizeSale() {
     });
     if (!res.ok) throw new Error();
     const sale = await res.json();
+    // Change to repeat on the success screen — only when an amount was picked
+    // and it actually covers the total.
+    const changeText =
+      paidAmount !== null && paidAmount >= sale.total
+        ? t("changeDue") + ": " + formatRs(paidAmount - sale.total)
+        : null;
     bill.length = 0;
     renderBill();
     confirmModal.hidden = true;
-    showToast(t("saleSaved") + formatRs(sale.total), 2500);
+    showSaleSuccess(sale.total, changeText);
   } catch {
     showToast(t("couldNotSaveSale"));
   } finally {
