@@ -99,6 +99,7 @@ so it can be updated without SSH/Pi access. `SECRET_KEY` is still an env var
 3. Timezone for sales timestamps: Asia/Kathmandu (the shop's local time), not the server's Sydney time
 4. Prices and quantities use REAL; quantity for measured items is kg or litres (the product's unit — decision 20) with up to 3 decimals
 5. Never use bullet points with dashes in generated docs — use numbered lists or plain bullets
+6. Static assets are cache-busted automatically: an `app.url_defaults` hook in `app.py` appends a content-hash `?v=` param to every `url_for('static', ...)` URL, so UI updates land on the shop's devices after a deploy without a manual hard refresh. New static references just need to go through `url_for` as usual. The app also ships a brand favicon (`static/favicon.svg`, a green "K" tile matching the header logo — SVG so no binary lives in the repo) linked on all pages and served via `/favicon.ico`.
 
 ## Product images (BUILT — see decision 18)
 

@@ -7,8 +7,10 @@ real data/ files or a running dev server.
     python tests.py
 """
 
+import hashlib
 import io
 import os
+import re
 import sys
 import tempfile
 
@@ -623,6 +625,18 @@ def run():
     check("old password no longer logs in", b"Wrong password" in client.post("/admin/login", data={"password": ADMIN_PW}).data)
     client.post("/admin/login", data={"password": NEW_PW})
     check("new password logs in", client.get("/admin/products").status_code == 200)
+
+    # ---------------------------------------------------------------
+    section("Static assets — cache-busting version param")
+    page = client.get("/").data.decode()
+    m = re.search(r'href="(/static/style\.css\?v=([0-9a-f]{8}))"', page)
+    check("cashier stylesheet URL carries a ?v= content hash", m is not None, page[:200])
+    check("all cashier static assets carry ?v=",
+          len(re.findall(r'/static/[^"]+\?v=[0-9a-f]{8}', page)) >= 6, str(re.findall(r'/static/[^"]+"', page)))
+    if m:
+        check("versioned asset URL serves the file", client.get(m.group(1)).status_code == 200)
+        expected = hashlib.md5(open(os.path.join("static", "style.css"), "rb").read()).hexdigest()[:8]
+        check("version matches the file's content hash", m.group(2) == expected)
 
     # ---------------------------------------------------------------
     print(f"\n{'='*40}\n{_passed} passed, {_failed} failed\n{'='*40}")

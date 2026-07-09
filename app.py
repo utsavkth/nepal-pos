@@ -1,6 +1,7 @@
 """Flask app for the Nepal Grocery POS."""
 
 import csv
+import hashlib
 import io
 import os
 import secrets
@@ -56,6 +57,40 @@ def rs_filter(value):
     return f"Rs. {value:,.2f}"
 
 
+# ---- Static asset cache-busting -------------------------------------------
+# The shop's browsers cache style.css/cashier.js hard, so UI updates used to
+# need a manual hard refresh after every deploy. Appending a short content
+# hash (?v=...) to every url_for('static', ...) URL makes each deploy's
+# changed assets fetch fresh automatically, while unchanged files keep their
+# cached copy. Hash is keyed by mtime so it's recomputed only when the file
+# actually changes on disk.
+
+_static_hash_cache = {}
+
+
+def _static_file_version(filename):
+    path = os.path.join(app.static_folder, filename)
+    try:
+        mtime = int(os.stat(path).st_mtime)
+    except OSError:
+        return None
+    cached = _static_hash_cache.get(filename)
+    if cached and cached[0] == mtime:
+        return cached[1]
+    with open(path, "rb") as f:
+        digest = hashlib.md5(f.read()).hexdigest()[:8]
+    _static_hash_cache[filename] = (mtime, digest)
+    return digest
+
+
+@app.url_defaults
+def _static_cache_bust(endpoint, values):
+    if endpoint == "static" and "filename" in values:
+        version = _static_file_version(values["filename"])
+        if version:
+            values["v"] = version
+
+
 # ---- Product images -------------------------------------------------------
 
 
@@ -109,6 +144,13 @@ def _handle_product_image_form(product_id, existing_image):
 def product_image(filename):
     """Serve a product photo from the HDD images directory."""
     return send_from_directory(IMAGES_DIR, filename)
+
+
+@app.route("/favicon.ico")
+def favicon():
+    # Browsers request /favicon.ico unconditionally; serve the brand icon
+    # instead of a 404 (templates also declare it via <link rel="icon">).
+    return send_from_directory(app.static_folder, "favicon.svg")
 
 
 @app.route("/")
