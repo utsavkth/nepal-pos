@@ -572,11 +572,13 @@ html, body {
   overflow: hidden;
   position: relative;
 }
-.scanner-viewport video, #html5qr-region, #html5qr-region video {
+.scanner-viewport video, #quagga-region, #quagga-region video {
   width: 100% !important;
   height: 100% !important;
   object-fit: cover;
 }
+/* Quagga injects a debug canvas next to its video — never show it */
+#quagga-region canvas { display: none; }
 .scanner-switch {
   position: absolute;
   top: 10px;

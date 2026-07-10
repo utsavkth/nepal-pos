@@ -1,5 +1,9 @@
 /* Barcode scanning: native BarcodeDetector where available (ChromeOS, Android
-   Chrome), html5-qrcode fallback elsewhere (iOS Safari has no BarcodeDetector).
+   Chrome), Quagga2 fallback elsewhere (iOS Safari has no BarcodeDetector).
+   Quagga2 replaced html5-qrcode after the latter repeatedly failed to decode
+   1D grocery barcodes on the iPhone 13 / 13 Pro Max — Quagga2's locator is
+   built specifically for 1D codes. The fallback is 1D-only (EAN/UPC/Code),
+   which is everything the shop sells; QR never decoded on that path anyway.
    Camera access requires a secure context — the app must be served over HTTPS
    at its Tailscale MagicDNS name for this to work on the iPhones.
    On devices with more than one camera a front/rear switch appears on the
@@ -9,15 +13,17 @@
 const scannerModal = document.getElementById("scanner-modal");
 const scannerVideo = document.getElementById("scanner-video");
 const scannerStatus = document.getElementById("scanner-status");
-const html5qrRegion = document.getElementById("html5qr-region");
+const quaggaRegion = document.getElementById("quagga-region");
 const scannerSwitch = document.getElementById("scanner-switch");
 const scannerManualInput = document.getElementById("scanner-manual-input");
 
 const BARCODE_FORMATS = ["ean_13", "ean_8", "upc_a", "upc_e", "code_128", "code_39"];
+// Same set in Quagga2's reader naming.
+const QUAGGA_READERS = ["ean_reader", "ean_8_reader", "upc_reader", "upc_e_reader", "code_128_reader", "code_39_reader"];
 
 let nativeStream = null;
 let nativeLoopId = null;
-let html5qr = null;
+let quaggaActive = false;
 let scanning = false;
 let currentOnScan = null;
 let preferredFacing = "environment"; // remembered for the session; rear by default
@@ -56,8 +62,8 @@ function cameraInfoSuffix(engine, video) {
 function startCameraStream() {
   if ("BarcodeDetector" in window) {
     startNativeScanner();
-  } else if (window.Html5Qrcode) {
-    startHtml5QrScanner();
+  } else if (window.Quagga) {
+    startQuaggaScanner();
   } else {
     scannerStatus.textContent = t("noScanner");
   }
@@ -70,7 +76,7 @@ async function startNativeScanner() {
       video: { facingMode: preferredFacing },
     });
     scannerVideo.hidden = false;
-    html5qrRegion.hidden = true;
+    quaggaRegion.hidden = true;
     scannerVideo.srcObject = nativeStream;
     await scannerVideo.play();
     scannerStatus.textContent = t("pointCamera") + cameraInfoSuffix("native", scannerVideo);
@@ -95,58 +101,74 @@ async function startNativeScanner() {
   }
 }
 
-function startHtml5QrScanner() {
+/* Accept a Quagga detection only when the decode is clean: EAN/UPC checksums
+   already gate a lot, but Code 39/128 misreads happen on blurry frames, so
+   (a) the average per-digit decode error must be low, and (b) the same code
+   must be seen twice in a row before it's accepted. */
+let lastQuaggaCode = null;
+
+function quaggaDecodeError(codeResult) {
+  const errs = (codeResult.decodedCodes || [])
+    .filter((d) => d.error !== undefined)
+    .map((d) => d.error);
+  if (errs.length === 0) return 0;
+  return errs.reduce((a, b) => a + b, 0) / errs.length;
+}
+
+function onQuaggaDetected(result) {
+  if (!scanning || !result || !result.codeResult || !result.codeResult.code) return;
+  if (quaggaDecodeError(result.codeResult) > 0.16) return; // too blurry — wait
+  const code = result.codeResult.code;
+  if (code !== lastQuaggaCode) {
+    lastQuaggaCode = code; // first sighting — require a confirming frame
+    return;
+  }
+  handleResult(code);
+}
+
+function startQuaggaScanner() {
   scannerVideo.hidden = true;
-  html5qrRegion.hidden = false;
+  quaggaRegion.hidden = false;
+  lastQuaggaCode = null;
 
-  // Tell the decoder to expect grocery 1D barcodes (EAN/UPC/Code) as well as
-  // QR — without this hint html5-qrcode is unreliable on 1D barcodes, which is
-  // exactly what the shop scans. This path runs on iOS and desktop where the
-  // native BarcodeDetector isn't available.
-  const F = window.Html5QrcodeSupportedFormats;
-  const formatsToSupport = F
-    ? [F.EAN_13, F.EAN_8, F.UPC_A, F.UPC_E, F.CODE_128, F.CODE_39, F.QR_CODE]
-    : undefined;
-
-  html5qr = new Html5Qrcode("html5qr-region", {
-    formatsToSupport,
-    experimentalFeatures: { useBarCodeDetectorIfSupported: true },
-    verbose: false,
-  });
-
-  html5qr
-    .start(
-      { facingMode: preferredFacing },
-      {
-        fps: 10,
-        // No qrbox: scan the WHOLE camera view. A small centre box is a common
-        // reason 1D grocery barcodes don't decode on phones (the barcode falls
-        // outside it); full-frame scanning is far more forgiving.
-        // Request a high-res rear stream too — the default low-res video is the
-        // other big reason 1D barcodes fail to decode on iPhones. `ideal` lets
-        // the browser negotiate down if the camera can't hit it.
-        videoConstraints: {
+  Quagga.init(
+    {
+      inputStream: {
+        type: "LiveStream",
+        target: quaggaRegion,
+        constraints: {
           facingMode: preferredFacing,
+          // High-res ideal — small 1D bars need the pixels; the browser
+          // negotiates down if the camera can't do it.
           width: { ideal: 1920 },
           height: { ideal: 1080 },
         },
       },
-      (decodedText) => handleResult(decodedText),
-      () => { /* per-frame decode misses are normal */ }
-    )
-    .then(() => {
+      locator: { patchSize: "medium", halfSample: true },
+      numOfWorkers: 0, // workers don't function in the bundled build
+      frequency: 10,
+      decoder: { readers: QUAGGA_READERS },
+      locate: true, // find the barcode anywhere in the frame, any angle
+    },
+    (err) => {
+      if (!scanning) return;
+      if (err) {
+        scannerStatus.textContent = cameraErrorMessage(err);
+        return;
+      }
+      Quagga.onDetected(onQuaggaDetected);
+      Quagga.start();
+      quaggaActive = true;
       scannerStatus.textContent = t("pointCamera");
       updateSwitchVisibility();
-      // Read the actual resolution once html5-qrcode has injected its video.
+      // Read the actual resolution once Quagga has injected its video.
       setTimeout(() => {
         if (!scanning) return;
-        const v = document.querySelector("#html5qr-region video");
-        scannerStatus.textContent = t("pointCamera") + cameraInfoSuffix("scanner", v);
+        const v = quaggaRegion.querySelector("video");
+        scannerStatus.textContent = t("pointCamera") + cameraInfoSuffix("quagga", v);
       }, 900);
-    })
-    .catch((err) => {
-      scannerStatus.textContent = cameraErrorMessage(err);
-    });
+    }
+  );
 }
 
 async function updateSwitchVisibility() {
@@ -183,14 +205,17 @@ function stopCameraTracks() {
     nativeStream = null;
     scannerVideo.srcObject = null;
   }
-  if (html5qr) {
-    const instance = html5qr;
-    html5qr = null;
-    // stop() throws synchronously if the scanner never actually started (e.g.
-    // the camera failed to open) — guard so manual entry and Close still work.
+  if (quaggaActive) {
+    quaggaActive = false;
+    // stop() can throw if the camera never actually started (e.g. permission
+    // denied) — guard so manual entry and Close still work on such devices.
     try {
-      return instance.stop().then(() => instance.clear()).catch(() => {});
+      Quagga.offDetected(onQuaggaDetected);
+      const stopped = Quagga.stop();
+      const cleanup = () => { quaggaRegion.innerHTML = ""; };
+      return Promise.resolve(stopped).then(cleanup, cleanup);
     } catch {
+      quaggaRegion.innerHTML = "";
       return Promise.resolve();
     }
   }
