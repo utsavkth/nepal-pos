@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Khatiwada Store — Zebra</title>
+<link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='zebra.css') }}">
+</head>
+<body>
+
+<div class="z-layout">
+
+  <header class="z-header">
+    <div class="z-header-main">
+      <span class="z-brand">Khatiwada Store</span>
+      <div id="header-datetime" class="z-datetime"></div>
+    </div>
+    <button id="lang-toggle" class="lang-toggle" type="button" data-i18n="langToggle">नेपाली</button>
+  </header>
+
+  <!-- The wedge input is the scan target: DataWedge types the barcode here and
+       sends Enter. It also doubles as name search for items with no barcode. -->
+  <div class="z-scan-row">
+    <input id="wedge-input" type="text" data-i18n-placeholder="wedgePlaceholder"
+           placeholder="Scan barcode or type name…" autocomplete="off" autocapitalize="off"
+           spellcheck="false" autofocus>
+    <button id="quick-add-btn" class="z-quick-add-btn" type="button" aria-label="Quick Add">＋</button>
+  </div>
+
+  <ul id="search-results" class="search-results z-search-results" hidden></ul>
+
+  <div id="quick-taps" class="quick-taps z-quick-taps"></div>
+
+  <div id="parked-row" class="z-parked-row" hidden>
+    <span class="z-parked-label" data-i18n="savedCarts">Saved carts:</span>
+    <div id="parked-chips" class="z-parked-chips"></div>
+  </div>
+
+  <section class="bill z-cart">
+    <div class="bill-title">
+      <span><span data-i18n="cart">Cart</span><span id="cart-name-label" class="z-cart-name"></span></span>
+      <button id="clear-bill-btn" class="btn-clear-bill" type="button" disabled data-i18n="clear">Clear</button>
+    </div>
+    <ul id="bill-lines" class="bill-lines"></ul>
+    <p id="cart-empty" class="z-cart-empty" data-i18n="emptyCart">Scan an item to start</p>
+  </section>
+
+  <footer class="z-footer">
+    <div class="bill-total-row">
+      <span data-i18n="total">Total</span>
+      <strong id="bill-total">Rs. 0.00</strong>
+    </div>
+    <div class="z-footer-btns">
+      <button id="save-cart-btn" class="btn z-btn-save-cart" type="button" disabled data-i18n="saveCart">SAVE CART</button>
+      <button id="confirm-sale-btn" class="btn btn-new-sale z-btn-confirm" type="button" disabled data-i18n="confirmSaleBtn">CONFIRM SALE</button>
+    </div>
+  </footer>
+
+</div>
+
+<!-- Payment step: static Fonepay QR + manual confirmation (decision 11 pattern).
+     This modal doubles as the confirm-sale guard: the sale is only saved after
+     PAYMENT RECEIVED is tapped. -->
+<div id="payment-modal" class="modal" hidden>
+  <div class="modal-box z-payment-box">
+    <h3 data-i18n="payment">Payment</h3>
+    <p class="z-payment-total" id="payment-total">Rs. 0.00</p>
+    <div id="payment-qr-area" class="z-payment-qr-area"></div>
+    <p class="z-payment-hint" data-i18n="payHint">Customer scans this QR with their banking app, or pays cash.</p>
+    <div class="modal-actions">
+      <button id="payment-back" class="btn btn-cancel" type="button" data-i18n="back">Back</button>
+      <button id="payment-received" class="btn btn-ok" type="button" data-i18n="paymentReceived">PAYMENT RECEIVED</button>
+    </div>
+  </div>
+</div>
+
+<!-- Save/park cart: name it (customer name) so it can be resumed later -->
+<div id="cart-name-modal" class="modal" hidden>
+  <div class="modal-box">
+    <h3 data-i18n="cartNameTitle">Save this cart</h3>
+    <label class="field">
+      <span data-i18n="cartNameLabel">Customer / cart name</span>
+      <input id="cart-name-input" type="text" autocomplete="off">
+    </label>
+    <div class="modal-actions">
+      <button id="cart-name-cancel" class="btn btn-cancel" type="button" data-i18n="cancel">Cancel</button>
+      <button id="cart-name-save" class="btn btn-ok" type="button" data-i18n="save">SAVE</button>
+    </div>
+  </div>
+</div>
+
+<!-- Weight pad modal -->
+<div id="weight-modal" class="modal" hidden>
+  <div class="modal-box">
+    <h3 id="weight-title">Rice</h3>
+    <div class="weight-display">
+      <span id="weight-value">0</span> <span id="weight-unit">kg</span>
+      <span id="weight-line-total" class="weight-line-total">Rs. 0.00</span>
+    </div>
+    <div id="weight-presets" class="weight-presets"></div>
+    <div class="numpad">
+      <button data-key="7">7</button><button data-key="8">8</button><button data-key="9">9</button>
+      <button data-key="4">4</button><button data-key="5">5</button><button data-key="6">6</button>
+      <button data-key="1">1</button><button data-key="2">2</button><button data-key="3">3</button>
+      <button data-key=".">.</button><button data-key="0">0</button><button data-key="del">⌫</button>
+    </div>
+    <div class="modal-actions">
+      <button id="weight-cancel" class="btn btn-cancel" type="button" data-i18n="cancel">Cancel</button>
+      <button id="weight-ok" class="btn btn-ok" type="button" disabled data-i18n="add">ADD</button>
+    </div>
+  </div>
+</div>
+
+<!-- Variety picker modal (group quick-tap -> pick specific product) -->
+<div id="variety-modal" class="modal" hidden>
+  <div class="modal-box">
+    <h3 id="variety-title">Rice</h3>
+    <ul id="variety-list" class="variety-list"></ul>
+    <div class="modal-actions">
+      <button id="variety-cancel" class="btn btn-cancel" type="button" data-i18n="cancel">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Price override modal (this sale only) -->
+<div id="price-modal" class="modal" hidden>
+  <div class="modal-box">
+    <h3 id="price-title">Change price</h3>
+    <p id="price-current" class="price-current"></p>
+    <div class="weight-display">
+      <span id="price-value">0</span>
+      <span class="weight-line-total"><span data-i18n="changePriceNew">new price in Rs.</span><span id="price-unit-suffix"></span></span>
+    </div>
+    <div class="numpad">
+      <button data-key="7">7</button><button data-key="8">8</button><button data-key="9">9</button>
+      <button data-key="4">4</button><button data-key="5">5</button><button data-key="6">6</button>
+      <button data-key="1">1</button><button data-key="2">2</button><button data-key="3">3</button>
+      <button data-key=".">.</button><button data-key="0">0</button><button data-key="del">⌫</button>
+    </div>
+    <div class="modal-actions">
+      <button id="price-cancel" class="btn btn-cancel" type="button" data-i18n="cancel">Cancel</button>
+      <button id="price-ok" class="btn btn-ok" type="button" disabled data-i18n="change">CHANGE</button>
+    </div>
+  </div>
+</div>
+
+<!-- Quick Add modal -->
+<div id="quick-add-modal" class="modal" hidden>
+  <div class="modal-box">
+    <h3 data-i18n="quickAddTitle">Quick Add</h3>
+    <p id="quick-add-barcode-note" class="barcode-note" hidden></p>
+    <label class="field">
+      <span data-i18n="name">Name</span>
+      <input id="quick-add-name" type="text" autocomplete="off">
+    </label>
+    <label class="field field-checkbox">
+      <input id="quick-add-weighed" type="checkbox">
+      <span data-i18n="soldByWeight">Sold loose — weighed or measured</span>
+    </label>
+    <label class="field" id="quick-add-unit-field">
+      <span data-i18n="measuredIn">Measured in</span>
+      <select id="quick-add-unit" disabled>
+        <option value="kg" data-i18n="kg">kg</option>
+        <option value="litre" data-i18n="litre">litre</option>
+      </select>
+    </label>
+    <label class="field" id="quick-add-group-field">
+      <span data-i18n="weighedCategory">Weighed category</span>
+      <select id="quick-add-group" disabled></select>
+    </label>
+    <label class="field" id="quick-add-category-field">
+      <span data-i18n="category">Category</span>
+      <select id="quick-add-category">
+        <option value="grocery" data-i18n="catGrocery">Grocery</option>
+        <option value="cosmetics" data-i18n="catCosmetics">Cosmetics</option>
+        <option value="stationery" data-i18n="catStationery">Stationery</option>
+        <option value="lpg" data-i18n="catLpg">LPG</option>
+        <option value="other" data-i18n="catOther">Other</option>
+      </select>
+    </label>
+    <label class="field">
+      <span id="quick-add-price-label" data-i18n="price">Price (Rs.)</span>
+      <input id="quick-add-price" type="number" inputmode="decimal" min="0" step="0.01">
+    </label>
+    <label class="field field-checkbox" id="quick-add-pinned-field">
+      <input id="quick-add-pinned" type="checkbox">
+      <span data-i18n="showAsButton">Show as a button on the sales screen</span>
+    </label>
+    <div class="modal-actions">
+      <button id="quick-add-cancel" class="btn btn-cancel" type="button" data-i18n="cancel">Cancel</button>
+      <button id="quick-add-save" class="btn btn-ok" type="button" data-i18n="saveAdd">SAVE &amp; ADD</button>
+    </div>
+  </div>
+</div>
+
+<!-- Duplicate warning (Quick Add) -->
+<div id="duplicate-modal" class="modal" hidden>
+  <div class="modal-box">
+    <h3 class="dup-title">⚠️ <span data-i18n="dupTitle">Possible duplicate</span></h3>
+    <p class="dup-existing" id="dup-existing"></p>
+    <p data-i18n="dupBody">This product looks like it's already in the system. Add it anyway?</p>
+    <div class="modal-actions">
+      <button id="dup-cancel" class="btn btn-cancel" type="button" data-i18n="cancel">Cancel</button>
+      <button id="dup-add-anyway" class="btn btn-danger-solid" type="button" data-i18n="dupAddAnyway">Add anyway</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast" hidden></div>
+
+<script src="{{ url_for('static', filename='i18n.js') }}"></script>
+<script src="{{ url_for('static', filename='nepali-date.js') }}"></script>
+<script src="{{ url_for('static', filename='zebra.js') }}"></script>
+</body>
+</html>
