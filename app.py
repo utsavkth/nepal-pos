@@ -158,14 +158,6 @@ def cashier():
     return render_template("cashier.html")
 
 
-@app.route("/zebra")
-def zebra():
-    """Zebra POS v2 — companion cashier UI for the Zebra TC53 handheld.
-    Same database and APIs as the main cashier; scanning is DataWedge
-    keyboard-wedge into an always-focused input instead of the camera."""
-    return render_template("zebra.html")
-
-
 @app.route("/api/products/search")
 def api_search_products():
     query = request.args.get("q", "").strip()

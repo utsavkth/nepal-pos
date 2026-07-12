@@ -113,14 +113,6 @@ def run():
     check("unknown barcode returns 404 (drives auto Quick Add)", r.status_code == 404)
 
     # ---------------------------------------------------------------
-    section("Zebra POS v2 — handheld cashier page")
-    r = client.get("/zebra")
-    page = r.get_data(as_text=True)
-    check("/zebra serves the handheld cashier", r.status_code == 200 and "wedge-input" in page)
-    check("payment step is on the page", "payment-modal" in page and "payment-received" in page)
-    check("no camera scanner on the Zebra page (DataWedge only)", "html5-qrcode" not in page)
-
-    # ---------------------------------------------------------------
     section("Cashier — search by name and barcode")
     r = client.get("/api/products/search?q=cola")
     check("search by name (case-insensitive)", any(p["name"] == "Test Cola" for p in r.get_json()))
