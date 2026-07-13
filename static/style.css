@@ -702,7 +702,44 @@ html, body {
   color: #fff;
 }
 /* display:flex would override the hidden attribute — restate it for these */
-.paid-custom[hidden], .change-box[hidden] { display: none; }
+.paid-custom[hidden], .change-box[hidden], .paid-section[hidden], .qr-pay-box[hidden] { display: none; }
+
+/* Payment-method step (Cash / QR) on the confirm modal */
+.pay-method {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 4px;
+  border-top: 1px solid #f1f5f9;
+}
+.pay-method-chips { grid-template-columns: repeat(2, 1fr); }
+
+/* Static FonePay QR shown when QR payment is picked (decision 11: staff still
+   confirm manually — this only displays the code the shop already hangs up) */
+.qr-pay-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: #fff;
+}
+.qr-pay-img {
+  width: min(62vw, 250px);
+  height: auto;
+  image-rendering: pixelated; /* keep QR modules crisp when scaled up */
+}
+.qr-pay-note { font-size: 1rem; font-weight: 700; color: var(--ink); text-align: center; }
+.qr-pay-note strong { font-size: 1.25rem; letter-spacing: -0.01em; }
+.qr-pay-brand {
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
 .paid-custom { display: flex; flex-direction: column; gap: 8px; }
 .paid-custom-value {
   text-align: center;

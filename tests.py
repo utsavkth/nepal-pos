@@ -646,6 +646,11 @@ def run():
           'data-paid="500"' in page and 'data-paid="1000"' in page and 'id="paid-custom-chip"' in page)
     check("sale-saved success screen present", 'id="success-modal"' in page and 'data-i18n="saleSavedTitle"' in page)
     check("weight pad has a preset chip row", 'id="weight-presets"' in page)
+    check("confirm modal offers Cash / QR payment step",
+          'id="pay-cash"' in page and 'id="pay-qr"' in page and 'id="qr-pay-box"' in page)
+    m_qr = re.search(r'src="(/static/fonepay-qr\.png[^"]*)"', page)
+    check("static FonePay QR image referenced and served",
+          m_qr is not None and client.get(m_qr.group(1)).status_code == 200)
 
     # ---------------------------------------------------------------
     print(f"\n{'='*40}\n{_passed} passed, {_failed} failed\n{'='*40}")

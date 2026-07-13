@@ -118,6 +118,18 @@
   <div class="modal-box">
     <h3 data-i18n="confirmSaleTitle">Confirm sale</h3>
     <p class="confirm-text"><span data-i18n="confirmSaleText">Confirm this sale?</span><strong id="confirm-amount">Rs. 0.00</strong></p>
+    <div class="pay-method">
+      <span class="paid-label" data-i18n="payMethod">Payment</span>
+      <div class="paid-chips pay-method-chips">
+        <button type="button" id="pay-cash" class="paid-chip selected" data-i18n="payCash">Cash</button>
+        <button type="button" id="pay-qr" class="paid-chip">QR</button>
+      </div>
+    </div>
+    <div id="qr-pay-box" class="qr-pay-box" hidden>
+      <img class="qr-pay-img" src="{{ url_for('static', filename='fonepay-qr.png') }}" alt="FonePay QR">
+      <span class="qr-pay-note"><span data-i18n="scanToPay">Scan to pay</span> <strong id="qr-pay-amount">Rs. 0.00</strong></span>
+      <span class="qr-pay-brand">FonePay · Khatiwada Store</span>
+    </div>
     <div class="paid-section">
       <span class="paid-label"><span data-i18n="customerPaid">Customer paid</span> <span class="paid-optional" data-i18n="optionalTag">(optional)</span></span>
       <div class="paid-chips">

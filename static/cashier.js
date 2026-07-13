@@ -737,6 +737,28 @@ const confirmModal = document.getElementById("confirm-modal");
 let paidAmount = null; // number, or null when nothing picked
 let paidCustomStr = "";
 
+/* Payment method step (decision 11 still holds: staff confirm manually either
+   way; nothing is sent anywhere). Cash shows the change calculator; QR shows
+   the shop's static FonePay QR for the customer to scan — a stopgap until a
+   dynamic per-sale QR is possible. */
+let payMethod = "cash";
+
+function setPayMethod(method) {
+  payMethod = method;
+  const qr = method === "qr";
+  if (qr) {
+    resetPaid(); // drop any picked cash amount so the change box can't go stale
+    document.getElementById("qr-pay-amount").textContent = formatRs(billTotal());
+  }
+  document.getElementById("pay-cash").classList.toggle("selected", !qr);
+  document.getElementById("pay-qr").classList.toggle("selected", qr);
+  document.getElementById("qr-pay-box").hidden = !qr;
+  document.querySelector("#confirm-modal .paid-section").hidden = qr;
+}
+
+document.getElementById("pay-cash").addEventListener("click", () => setPayMethod("cash"));
+document.getElementById("pay-qr").addEventListener("click", () => setPayMethod("qr"));
+
 function resetPaid() {
   paidAmount = null;
   paidCustomStr = "";
@@ -748,7 +770,9 @@ function resetPaid() {
 function renderChangeBox() {
   const box = document.getElementById("change-box");
   const clearBtn = document.getElementById("paid-clear");
-  document.querySelectorAll(".paid-chip").forEach((chip) => {
+  // Scoped to the calculator's own chips — the Cash/QR method chips share the
+  // .paid-chip styling but their selection is managed by setPayMethod.
+  document.querySelectorAll(".paid-section .paid-chip").forEach((chip) => {
     const isCustomChip = chip.id === "paid-custom-chip";
     const chipValue = isCustomChip ? null : parseFloat(chip.dataset.paid);
     const customOpen = !document.getElementById("paid-custom-pad").hidden;
@@ -831,6 +855,7 @@ document.getElementById("new-sale-btn").addEventListener("click", () => {
   if (bill.length === 0) return;
   document.getElementById("confirm-amount").textContent = formatRs(billTotal());
   resetPaid(); // the calculator starts blank for every sale
+  setPayMethod("cash"); // every sale starts on cash
   confirmModal.hidden = false;
 });
 
