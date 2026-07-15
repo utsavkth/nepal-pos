@@ -145,14 +145,23 @@ reload). Install it and a monthly cron job:
 ```bash
 chmod +x /opt/nepal-pos/deploy/renew-cert.sh
 sudo /opt/nepal-pos/deploy/renew-cert.sh       # run once to confirm it works
-sudo crontab -e
 ```
 
-Add:
+Use a dedicated `/etc/cron.d` file rather than `sudo crontab -e` — this Pi runs
+OpenMediaVault, which manages part of root's crontab via Salt (look for a
+`# Lines below here are managed by Salt, do not edit` marker in `sudo crontab
+-l`); a manually-appended line risks being silently dropped if that state ever
+regenerates. `/etc/cron.d` is untouched by that and matches every other system
+cron job already on this Pi (`anacron`, `e2scrub_all`, `php`, etc. all live
+there):
 
+```bash
+echo "15 3 1 * * root /opt/nepal-pos/deploy/renew-cert.sh >> /var/log/nepal-pos-cert.log 2>&1" | sudo tee /etc/cron.d/nepal-pos-cert-renew
+sudo chmod 644 /etc/cron.d/nepal-pos-cert-renew
 ```
-15 3 1 * * /opt/nepal-pos/deploy/renew-cert.sh >> /var/log/nepal-pos-cert.log 2>&1
-```
+
+(`/etc/cron.d` entries need an explicit user field — `root` here, matching the
+script's own "run as root" requirement — a per-user crontab line doesn't.)
 
 ---
 
