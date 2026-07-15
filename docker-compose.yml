@@ -4,6 +4,13 @@ services:
     image: nepal-pos
     container_name: nepal-pos
     restart: unless-stopped
+    labels:
+      # This image is built locally from source (no registry push), so
+      # Watchtower can never find a newer version to pull — it was just
+      # polling and reporting "not updated" every day. Deploys are
+      # deliberate: git pull + docker compose up -d --build via Termius,
+      # not automatic.
+      - "com.centurylinklabs.watchtower.enable=false"
     ports:
       # host 5050 -> container 5000; Caddy reverse-proxies to 5050 (phase 7)
       - "5050:5000"
