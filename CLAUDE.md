@@ -42,10 +42,21 @@ data.
 As of 2026-07-22, added `/sso-login` (in `app.py`, guarded by `HANDOFF_SECRET`/`STORE_ID` env vars — both unset
 in the real family-shop deployment, so the route 501s there and does nothing): verifies the short-lived signed
 handoff token minted by the separate `pos-saas-accounts` backend's `/login`, and stamps
-`session["sso_authenticated"]`. Deliberately scoped: it does NOT gate the cashier or any other route behind
-that session flag yet — the cashier (`/`) and all `/api/*` routes stay exactly as open as before. Wrapping
-every route in a real login-required check is a separate, larger follow-up needed before any real (non-mock)
-paying customer runs on a container built from this image.
+`session["sso_authenticated"]`.
+
+Also as of 2026-07-22 (later the same day): **added real route gating**, via a `before_request` hook
+(`_require_portal_session` in `app.py`) requiring `session["sso_authenticated"]` for every route except
+`/sso-login` itself, static/media/favicon, and anything under `/admin` (which has its own separate password
+gate, untouched). This closes the gap the paragraph above used to describe. The hook is a total no-op unless
+**three** env vars are all set: `HANDOFF_SECRET`, `STORE_ID`, and the new `PORTAL_LOGIN_URL` (where to bounce an
+unauthenticated visitor — the landing site's `/login`). The real family-shop deployment sets none of them, so
+this is unchanged there. An unauthenticated visitor to a gated SaaS container now gets redirected straight to
+`PORTAL_LOGIN_URL` instead of seeing the cashier screen directly.
+
+Forced password-reset on first login is handled entirely on the `pos-saas-accounts` + `pos-saas-landing` side
+(see those repos), not here — by the time this container ever receives a valid handoff token, `pos-saas-accounts`
+has already refused to issue one for an account still on a temp password. This container's `/sso-login` needed
+no changes for that part.
 
 ## Project structure
 

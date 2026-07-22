@@ -162,19 +162,40 @@ def cashier():
 # --- SaaS pilot SSO handoff --------------------------------------------------
 # Receives the short-lived token minted by pos-saas-accounts' /login (see that
 # repo's app.py and the "Authentication Handoff Sequence" in the Notion SaaS
-# Pilot Plan). SCOPED STEP ONLY: verifies the token and stamps the session,
-# but does NOT gate the cashier or any other route behind it yet — this app
-# was designed for Tailscale-trusted access with no cashier-level login at
-# all (see CLAUDE.md decision 3), and the mock SaaS tenant currently shares
-# that same no-login reality. Wrapping every route in a login check is a
-# separate, larger follow-up, needed before any real (non-mock) customer runs
-# on this container. HANDOFF_SECRET/STORE_ID are unset for the actual family
-# shop deployment, so this route 501s there rather than doing anything.
+# Pilot Plan). HANDOFF_SECRET/STORE_ID/PORTAL_LOGIN_URL are all unset for the
+# actual family shop deployment, so none of this activates there — decision
+# 3/4's Tailscale-only, no-cashier-login model is completely unchanged for
+# that deployment. Only a SaaS-pilot container (all three env vars set) gets
+# the route gating below.
 HANDOFF_SECRET = os.environ.get("HANDOFF_SECRET")
 STORE_ID = os.environ.get("STORE_ID")
+PORTAL_LOGIN_URL = os.environ.get("PORTAL_LOGIN_URL")
 _handoff_serializer = (
     URLSafeTimedSerializer(HANDOFF_SECRET, salt="pos-saas-sso-handoff") if HANDOFF_SECRET else None
 )
+
+# Endpoints reachable without a portal session, even on a gated SaaS
+# container: the handoff receiver itself (or logging in would be impossible),
+# and static-ish assets that have nothing sensitive in them.
+_PORTAL_GATE_EXEMPT_ENDPOINTS = {"sso_login", "favicon", "product_image", "static"}
+
+
+@app.before_request
+def _require_portal_session():
+    # No-op entirely unless this container is both SSO-configured AND has a
+    # landing-page URL to bounce unauthenticated visitors to — the real
+    # family-shop deployment has none of these set, so this never runs there.
+    if _handoff_serializer is None or not STORE_ID or not PORTAL_LOGIN_URL:
+        return None
+    if request.endpoint is None:
+        return None  # let normal 404 handling deal with unmatched routes
+    if request.endpoint in _PORTAL_GATE_EXEMPT_ENDPOINTS:
+        return None
+    if request.endpoint.startswith("admin"):
+        return None  # the internal Admin Portal has its own separate password gate
+    if session.get("sso_authenticated"):
+        return None
+    return redirect(PORTAL_LOGIN_URL)
 
 
 @app.route("/sso-login")

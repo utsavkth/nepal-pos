@@ -683,6 +683,45 @@ def run():
     check("missing token -> 400, not a 500", resp.status_code == 400, resp.status_code)
 
     # ---------------------------------------------------------------
+    section("SaaS pilot — portal route gating (only active once PORTAL_LOGIN_URL is set)")
+    # HANDOFF_SECRET/STORE_ID are already set (module-level, above); the gate
+    # additionally requires PORTAL_LOGIN_URL, so toggling just that here
+    # proves the real family-shop deployment (which never sets it) is
+    # unaffected, while a fully-configured SaaS container is gated.
+    app_module.PORTAL_LOGIN_URL = "https://possaas.chickenkiller.com/login"
+
+    with client.session_transaction() as sess:
+        sess.pop("sso_authenticated", None)
+
+    resp = client.get("/", follow_redirects=False)
+    check("cashier redirects to the portal login when not authenticated",
+          resp.status_code == 302 and resp.headers["Location"] == app_module.PORTAL_LOGIN_URL,
+          resp.status_code)
+
+    resp = client.get("/api/products/quick-taps", follow_redirects=False)
+    check("api routes are gated too when not authenticated", resp.status_code == 302, resp.status_code)
+
+    resp = client.get("/favicon.ico")
+    check("favicon stays exempt from gating", resp.status_code == 200, resp.status_code)
+
+    resp = client.get(f"/sso-login?token={good_token}", follow_redirects=False)
+    check("sso-login route itself stays reachable while gated", resp.status_code == 302, resp.status_code)
+
+    with client.session_transaction() as sess:
+        sess["sso_authenticated"] = True
+    resp = client.get("/", follow_redirects=False)
+    check("cashier loads normally once sso_authenticated is set", resp.status_code == 200, resp.status_code)
+
+    resp = client.get("/admin", follow_redirects=False)
+    check("admin routes are exempt from the portal gate — not sent to the portal login",
+          resp.status_code == 302 and resp.headers.get("Location") != app_module.PORTAL_LOGIN_URL,
+          resp.headers.get("Location"))
+
+    with client.session_transaction() as sess:
+        sess.pop("sso_authenticated", None)
+    app_module.PORTAL_LOGIN_URL = None  # restore — real deployment never sets this
+
+    # ---------------------------------------------------------------
     print(f"\n{'='*40}\n{_passed} passed, {_failed} failed\n{'='*40}")
     return 0 if _failed == 0 else 1
 
