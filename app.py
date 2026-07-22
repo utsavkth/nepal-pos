@@ -21,6 +21,7 @@ from flask import (
     session,
     url_for,
 )
+from itsdangerous import BadSignature, URLSafeTimedSerializer
 from PIL import Image, ImageOps, UnidentifiedImageError
 from werkzeug.security import check_password_hash, generate_password_hash
 
@@ -156,6 +157,41 @@ def favicon():
 @app.route("/")
 def cashier():
     return render_template("cashier.html")
+
+
+# --- SaaS pilot SSO handoff --------------------------------------------------
+# Receives the short-lived token minted by pos-saas-accounts' /login (see that
+# repo's app.py and the "Authentication Handoff Sequence" in the Notion SaaS
+# Pilot Plan). SCOPED STEP ONLY: verifies the token and stamps the session,
+# but does NOT gate the cashier or any other route behind it yet — this app
+# was designed for Tailscale-trusted access with no cashier-level login at
+# all (see CLAUDE.md decision 3), and the mock SaaS tenant currently shares
+# that same no-login reality. Wrapping every route in a login check is a
+# separate, larger follow-up, needed before any real (non-mock) customer runs
+# on this container. HANDOFF_SECRET/STORE_ID are unset for the actual family
+# shop deployment, so this route 501s there rather than doing anything.
+HANDOFF_SECRET = os.environ.get("HANDOFF_SECRET")
+STORE_ID = os.environ.get("STORE_ID")
+_handoff_serializer = (
+    URLSafeTimedSerializer(HANDOFF_SECRET, salt="pos-saas-sso-handoff") if HANDOFF_SECRET else None
+)
+
+
+@app.route("/sso-login")
+def sso_login():
+    if _handoff_serializer is None or not STORE_ID:
+        return "SSO is not configured for this container.", 501
+
+    try:
+        payload = _handoff_serializer.loads(request.args.get("token", ""), max_age=60)
+    except BadSignature:
+        return "Invalid or expired login link. Please log in again from the main site.", 400
+
+    if payload.get("store_id") != STORE_ID:
+        return "This login link is not valid for this store.", 403
+
+    session["sso_authenticated"] = True
+    return redirect(url_for("cashier"))
 
 
 @app.route("/api/products/search")

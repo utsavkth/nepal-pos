@@ -16,6 +16,7 @@ import tempfile
 
 from datetime import date as _date
 
+from itsdangerous import URLSafeTimedSerializer
 from PIL import Image
 from werkzeug.security import check_password_hash
 
@@ -36,6 +37,11 @@ if hasattr(sys.stdout, "reconfigure"):
 # app.py calls db.init_db() at import time, so the DB paths must be set first.
 # The admin password is no longer an env var — it's set via the first-run flow.
 _TMP = tempfile.mkdtemp(prefix="nepalpos-test-")
+
+# SSO handoff env vars must be set before importing app.py too — it reads
+# them at module level (see the "SaaS pilot SSO handoff" section in app.py).
+os.environ["HANDOFF_SECRET"] = "test-handoff-secret"
+os.environ["STORE_ID"] = "teststore"
 
 import db  # noqa: E402
 
@@ -651,6 +657,30 @@ def run():
     m_qr = re.search(r'src="(/static/fonepay-qr\.png[^"]*)"', page)
     check("static FonePay QR image referenced and served",
           m_qr is not None and client.get(m_qr.group(1)).status_code == 200)
+
+    # ---------------------------------------------------------------
+    section("SaaS pilot — /sso-login handoff receiving route")
+    handoff = URLSafeTimedSerializer("test-handoff-secret", salt="pos-saas-sso-handoff")
+    good_token = handoff.dumps({"store_id": "teststore", "subdomain": "teststore"})
+
+    resp = client.get(f"/sso-login?token={good_token}", follow_redirects=False)
+    check("valid token -> redirect to cashier", resp.status_code == 302 and resp.headers["Location"] == "/", resp.status_code)
+    with client.session_transaction() as sess:
+        check("session stamped as sso_authenticated", sess.get("sso_authenticated") is True)
+
+    wrong_store_token = handoff.dumps({"store_id": "someone-elses-store", "subdomain": "x"})
+    resp = client.get(f"/sso-login?token={wrong_store_token}")
+    check("token minted for a different store_id -> 403", resp.status_code == 403, resp.status_code)
+
+    tampered = good_token[:-1] + ("a" if good_token[-1] != "a" else "b")
+    resp = client.get(f"/sso-login?token={tampered}")
+    check("tampered token -> 400", resp.status_code == 400, resp.status_code)
+
+    resp = client.get("/sso-login?token=not-a-real-token")
+    check("garbage token -> 400, not a 500", resp.status_code == 400, resp.status_code)
+
+    resp = client.get("/sso-login")
+    check("missing token -> 400, not a 500", resp.status_code == 400, resp.status_code)
 
     # ---------------------------------------------------------------
     print(f"\n{'='*40}\n{_passed} passed, {_failed} failed\n{'='*40}")

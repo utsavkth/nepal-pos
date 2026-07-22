@@ -29,6 +29,24 @@ The shop-facing display name shown in the UI is "Khatiwada Store"; "Nepal Grocer
 19. User-defined cashier groups (BUILT — generalises decisions 9 and the old fixed LPG button): the cashier quick-tap group buttons are no longer a hardcoded list. A `groups` table (name, optional `name_ne`, `is_weighed`, `sort_order`, `active`) holds each button; Utsav manages them self-serve on an admin "Groups" page (add/edit/hide/delete). A group is either WEIGHED (green tile → variety picker → weight pad) or FIXED-PRICE (orange tile → list you tap to add straight to the bill, the LPG pattern). A product's membership is stored in its existing `weighed_group` column — now generalised to hold ANY group name (weighed or fixed), not just the old Rice/Dal/Sugar/Flour/Other set (column kept as-is to keep the migration light; think of it as "group name"). On first run the table is seeded with the previous defaults (Rice/Dal/Sugar/Flour/Other weighed + LPG fixed) and existing `category='lpg'` products are folded into the LPG group, so upgrade is behaviour-preserving. A group's button appears on the cashier once it has ≥1 active product. Known default names get an inline SVG icon (drawn client-side — emoji were dropped, they didn't render on the shop's devices); custom groups get a white letter badge. Groups are bilingual via their own `name_ne` (not `i18n.js`). Renaming a group moves its products; deleting a group keeps the products but clears their group. The product Edit form and Quick Add pick the group from the live list. Pinned products (decision 17) are still separate one-tap buttons, not groups.
 20. Measured-by-litre products (generalises "weighed"): a product sold loose by volume (e.g. loose mustard oil) is a measured product exactly like the per-kg ones — `is_weighed = 1` with `unit = 'litre'` (kg stays the default and the only other measured unit; the allowed pair lives in `MEASURE_UNITS` in `app.py`). The product's `unit` drives every label: the quantity pad (litre instead of kg), price suffixes (`/litre`), the bill line, and the price override — via small helpers in `cashier.js` (`unitName`/`perUnit`/`perUnitSuffix`), bilingual through the decision-15 dictionary (लिटर). Quick Add gains a "Measured in" picker (kg/litre) that activates with the "sold loose" checkbox; the admin form uses the existing Unit dropdown plus the is_weighed checkbox. kg and litre products can share the same weighed-type group (the pad unit comes from the product, not the group). The old `CHECK (unit IN ...)` constraint was dropped from the products table by a rebuild migration — allowed units now live in app code (`UNITS` in `app.py`), the same pattern as `category`, so future units are a code-list change only.
 
+## Secondary deployment: POS SaaS pilot mock tenant (flags a deviation from decision 3/4 above)
+
+This same image also runs as a mock customer container ("customer1") on a separate Oracle Cloud VPS, exposed
+publicly at `https://possaas-c1.chickenkiller.com` — part of commercializing this codebase as a multi-tenant
+SaaS product (see the Notion page "💰 Commercialize the POS — SaaS Pilot Plan", id
+`39f144bf-7aa3-81f6-ab60-de69715835f8`). That deployment is NOT Tailscale-gated, which conflicts with decision
+3/4's Tailscale-only access model — flagging it explicitly here rather than silently treating it as changed,
+per this file's own instruction. It's an accepted gap for now because it's mock/test data, not real customer
+data.
+
+As of 2026-07-22, added `/sso-login` (in `app.py`, guarded by `HANDOFF_SECRET`/`STORE_ID` env vars — both unset
+in the real family-shop deployment, so the route 501s there and does nothing): verifies the short-lived signed
+handoff token minted by the separate `pos-saas-accounts` backend's `/login`, and stamps
+`session["sso_authenticated"]`. Deliberately scoped: it does NOT gate the cashier or any other route behind
+that session flag yet — the cashier (`/`) and all `/api/*` routes stay exactly as open as before. Wrapping
+every route in a real login-required check is a separate, larger follow-up needed before any real (non-mock)
+paying customer runs on a container built from this image.
+
 ## Project structure
 
 - `app.py` — all Flask routes
