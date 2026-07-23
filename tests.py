@@ -672,7 +672,14 @@ def run():
     resp = client.get(f"/sso-login?token={wrong_store_token}")
     check("token minted for a different store_id -> 403", resp.status_code == 403, resp.status_code)
 
-    tampered = good_token[:-1] + ("a" if good_token[-1] != "a" else "b")
+    # Flip a character well before the end, not the last one or two — base64's
+    # final characters can carry unused/padding bits, so some single-character
+    # edits right at the end decode to the SAME bytes, making a last-char flip
+    # flaky (~6% of the time) rather than reliably invalid.
+    _tamper_idx = len(good_token) - 5
+    tampered = (good_token[:_tamper_idx]
+                + ("a" if good_token[_tamper_idx] != "a" else "b")
+                + good_token[_tamper_idx + 1:])
     resp = client.get(f"/sso-login?token={tampered}")
     check("tampered token -> 400", resp.status_code == 400, resp.status_code)
 
