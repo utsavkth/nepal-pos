@@ -58,6 +58,16 @@ Forced password-reset on first login is handled entirely on the `pos-saas-accoun
 has already refused to issue one for an account still on a temp password. This container's `/sso-login` needed
 no changes for that part.
 
+**`STORE_NAME` env var (added 2026-07-23):** overrides the "Khatiwada Store" branding hardcoded throughout the
+templates (cashier title/header, admin titles/sidebar, the FonePay QR label) — defaults to "Khatiwada Store"
+when unset, so the real family-shop deployment is completely unaffected. Injected into every template
+automatically via `inject_store_name` (a `@app.context_processor`), not passed explicitly per-`render_template`
+call. Set by `pos-saas-accounts/scripts/provision_customer.sh`'s third argument for each SaaS pilot customer,
+so each one's app shows their own shop name instead of the family shop's. The FonePay QR *image itself*
+(`static/fonepay-static-qr.jpg`, the real family shop's actual merchant QR) is NOT templated — showing that
+real QR to a different shop's customers would misdirect real payments to the wrong merchant. Swapping it per
+customer is a deliberate manual step (the user's own call), not automated here.
+
 ## Project structure
 
 - `app.py` — all Flask routes

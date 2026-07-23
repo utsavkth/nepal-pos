@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>Khatiwada Store</title>
+<title>{{ store_name }}</title>
 <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
@@ -14,7 +14,7 @@
   <section class="controls">
     <header class="app-header">
       <div class="app-header-main">
-        <span class="brand">Khatiwada Store</span>
+        <span class="brand">{{ store_name }}</span>
         <div id="header-datetime" class="header-datetime"></div>
       </div>
       <div class="header-actions">
@@ -128,7 +128,7 @@
     <div id="qr-pay-box" class="qr-pay-box" hidden>
       <img class="qr-pay-img" src="{{ url_for('static', filename='fonepay-qr.png') }}" alt="FonePay QR">
       <span class="qr-pay-note"><span data-i18n="scanToPay">Scan to pay</span> <strong id="qr-pay-amount">Rs. 0.00</strong></span>
-      <span class="qr-pay-brand">FonePay · Khatiwada Store</span>
+      <span class="qr-pay-brand">FonePay · {{ store_name }}</span>
     </div>
     <div class="paid-section">
       <span class="paid-label"><span data-i18n="customerPaid">Customer paid</span> <span class="paid-optional" data-i18n="optionalTag">(optional)</span></span>

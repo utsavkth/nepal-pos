@@ -49,8 +49,19 @@ MEASURE_UNITS = ["kg", "litre"]
 QUICK_ADD_CATEGORIES = ["grocery", "cosmetics", "stationery", "lpg", "other"]
 MIN_PASSWORD_LEN = 8
 
+# Shop display name shown throughout the UI (titles, headers, admin sidebar).
+# Defaults to the real family shop's name so that deployment is unaffected;
+# a SaaS pilot container sets this via provision_customer.sh so each
+# customer's app shows their own shop name instead of "Khatiwada Store".
+STORE_NAME = os.environ.get("STORE_NAME", "Khatiwada Store")
+
 
 db.init_db()
+
+
+@app.context_processor
+def inject_store_name():
+    return {"store_name": STORE_NAME}
 
 
 @app.template_filter("rs")

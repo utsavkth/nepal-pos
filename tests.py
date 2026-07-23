@@ -42,6 +42,9 @@ _TMP = tempfile.mkdtemp(prefix="nepalpos-test-")
 # them at module level (see the "SaaS pilot SSO handoff" section in app.py).
 os.environ["HANDOFF_SECRET"] = "test-handoff-secret"
 os.environ["STORE_ID"] = "teststore"
+# Deliberately a non-default value, so tests below prove the override path
+# actually works (rather than just re-confirming the hardcoded fallback).
+os.environ["STORE_NAME"] = "Test Shop Co"
 
 import db  # noqa: E402
 
@@ -657,6 +660,18 @@ def run():
     m_qr = re.search(r'src="(/static/fonepay-qr\.png[^"]*)"', page)
     check("static FonePay QR image referenced and served",
           m_qr is not None and client.get(m_qr.group(1)).status_code == 200)
+
+    # ---------------------------------------------------------------
+    section("SaaS pilot — STORE_NAME overrides branding everywhere")
+    cashier_page = client.get("/").get_data(as_text=True)
+    check("cashier header shows the overridden store name", "Test Shop Co" in cashier_page)
+    check("hardcoded 'Khatiwada Store' no longer present on cashier", "Khatiwada Store" not in cashier_page)
+
+    login_page = client.get("/admin/login").get_data(as_text=True)
+    check("admin login heading shows the overridden store name", "Test Shop Co" in login_page)
+
+    admin_page = client.get("/admin/products", follow_redirects=True).get_data(as_text=True)
+    check("admin sidebar brand shows the overridden store name", "Test Shop Co" in admin_page)
 
     # ---------------------------------------------------------------
     section("SaaS pilot — /sso-login handoff receiving route")
