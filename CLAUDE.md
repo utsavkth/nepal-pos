@@ -58,6 +58,15 @@ Forced password-reset on first login is handled entirely on the `pos-saas-accoun
 has already refused to issue one for an account still on a temp password. This container's `/sso-login` needed
 no changes for that part.
 
+**`scope="admin"` on the handoff token (added 2026-07-24):** if the decoded token payload has `"scope": "admin"`,
+`/sso-login` stamps `session["admin"] = True` in addition to `session["sso_authenticated"]` and redirects to
+`/admin` instead of the cashier. This is how the Master Dashboard's "Access admin" button gets an operator into
+a customer's *internal* Admin Portal without needing that store's own admin password — closes the wireframe's
+"master override password across every customer's admin portal" gap, but deliberately via a 60-second signed
+token (minted per-click by `pos-saas-accounts`) rather than a permanent shared password. A token with no
+`scope` field behaves exactly as before (cashier session only) — this required no change to the plain
+access-portal path.
+
 **`STORE_NAME` env var (added 2026-07-23):** overrides the "Khatiwada Store" branding hardcoded throughout the
 templates (cashier title/header, admin titles/sidebar, the FonePay QR label) — defaults to "Khatiwada Store"
 when unset, so the real family-shop deployment is completely unaffected. Injected into every template

@@ -223,6 +223,13 @@ def sso_login():
         return "This login link is not valid for this store.", 403
 
     session["sso_authenticated"] = True
+    if payload.get("scope") == "admin":
+        # Master Dashboard's "Access admin" -- grants the same session the
+        # store's own admin password would, via a short-lived signed token
+        # instead of a permanent shared password across every customer (see
+        # pos-saas-accounts' admin_access_customer_admin route).
+        session["admin"] = True
+        return redirect(url_for("admin_home"))
     return redirect(url_for("cashier"))
 
 

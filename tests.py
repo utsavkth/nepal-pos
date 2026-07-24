@@ -705,6 +705,26 @@ def run():
     check("missing token -> 400, not a 500", resp.status_code == 400, resp.status_code)
 
     # ---------------------------------------------------------------
+    section("SaaS pilot — /sso-login with scope=admin (Master Dashboard 'Access admin')")
+    admin_scope_token = handoff.dumps({"store_id": "teststore", "subdomain": "teststore", "scope": "admin"})
+    resp = client.get(f"/sso-login?token={admin_scope_token}", follow_redirects=False)
+    check("admin-scope token -> redirect to /admin (not the cashier)",
+          resp.status_code == 302 and resp.headers["Location"] == "/admin", resp.headers.get("Location"))
+    with client.session_transaction() as sess:
+        check("admin-scope token stamps session[admin] too", sess.get("admin") is True)
+        check("admin-scope token still stamps sso_authenticated", sess.get("sso_authenticated") is True)
+    client.get("/admin/logout")
+    check("logging out of the admin session clears admin access",
+          client.get("/admin/products", follow_redirects=False).status_code == 302)
+
+    portal_scope_token = handoff.dumps({"store_id": "teststore", "subdomain": "teststore"})
+    resp = client.get(f"/sso-login?token={portal_scope_token}", follow_redirects=False)
+    check("token without scope still defaults to the cashier (unchanged behavior)",
+          resp.status_code == 302 and resp.headers["Location"] == "/", resp.status_code)
+    with client.session_transaction() as sess:
+        check("no scope -> session[admin] not set", not sess.get("admin"))
+
+    # ---------------------------------------------------------------
     section("SaaS pilot — portal route gating (only active once PORTAL_LOGIN_URL is set)")
     # HANDOFF_SECRET/STORE_ID are already set (module-level, above); the gate
     # additionally requires PORTAL_LOGIN_URL, so toggling just that here
